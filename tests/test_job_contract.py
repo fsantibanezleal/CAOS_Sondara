@@ -18,10 +18,14 @@ def test_strict_ordinary_kriging_request():
 
 
 def test_extra_fields_are_rejected():
-    payload = base(); payload["unexpected"] = True
-    with pytest.raises(ValueError): JobRequest.model_validate(payload)
+    payload = base()
+    payload["unexpected"] = True
+    with pytest.raises(ValueError):
+        JobRequest.model_validate(payload)
 
 
 def test_categorical_requires_training_image():
-    payload = base("snesim"); payload["observations"] = []
-    with pytest.raises(ValueError): JobRequest.model_validate(payload)
+    payload = base("snesim")
+    payload["observations"] = []
+    with pytest.raises(ValueError):
+        JobRequest.model_validate(payload)

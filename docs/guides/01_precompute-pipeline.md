@@ -2,7 +2,7 @@
 
 ```bash
 ./scripts/setup.sh            # or scripts/setup.ps1, builds .venv-pipeline + .venv, installs, editable pkg
-./scripts/precompute.sh       # all cases   (or:  ./scripts/precompute.sh EX02_epidemic --seed 7)
+./scripts/precompute.sh       # all authored drillhole cases   (or:  ./scripts/precompute.sh copper-ridge --seed 7)
 .venv-pipeline/bin/python -m pytest        # (Scripts/python.exe on Windows)
 ./scripts/smoke.sh            # CONTRACT 2 check: index <-> manifests <-> artifacts consistent
 ```

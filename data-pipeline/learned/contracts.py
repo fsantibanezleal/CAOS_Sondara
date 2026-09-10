@@ -85,7 +85,8 @@ def split_manifest(canonical: dict, seed: int = SEEDS[0], spatial_margin: bool =
     holes = sorted({r["holeId"] for r in rows})
     if len(holes) < 7:
         raise ValueError("four grouped splits require at least seven eligible holes")
-    rank = lambda hole: hashlib.sha256(f"{seed}:{hole}".encode()).hexdigest()
+    def rank(hole: str) -> str:
+        return hashlib.sha256(f"{seed}:{hole}".encode()).hexdigest()
     holes.sort(key=rank)
     n = len(holes)
     nv, nc, nt = max(1, round(.15 * n)), max(1, round(.10 * n)), max(1, round(.15 * n))
