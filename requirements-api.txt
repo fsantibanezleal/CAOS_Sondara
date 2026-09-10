@@ -1,0 +1,7 @@
+# Slim CPU job service. The published numerical-core pin is added at its verified release.
+fastapi==0.141.1
+pydantic==2.13.5
+uvicorn==0.52.4
+numpy==2.5.3
+scipy==1.18.1
+onnxruntime==1.29.0

@@ -1,0 +1,19 @@
+{
+  "// note": "Point Pylance at the Sondara pipeline venv and keep generated data outside the editor watcher.",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv-pipeline/Scripts/python.exe",
+  "python.analysis.extraPaths": ["data-pipeline"],
+  "python.analysis.exclude": ["**/.venv*/**", "**/node_modules/**", "**/frontend/dist/**"],
+  "files.watcherExclude": {
+    "**/.venv*/**": true,
+    "**/node_modules/**": true,
+    "**/frontend/dist/**": true,
+    "**/frontend/public/data/**": true,
+    "**/__pycache__/**": true,
+    "**/data/raw/**": true
+  },
+  "search.exclude": {
+    "**/.venv*": true,
+    "**/node_modules": true,
+    "**/frontend/dist": true
+  }
+}

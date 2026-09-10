@@ -1,0 +1,4 @@
+# Optional GPU accelerator lane. This file is intentionally dependency-free in
+# the template. An instantiated product pins the verified CUDA/ROCm packages and
+# records the driver/runtime matrix in docs/guides/03_gpu-lane.md.
+-r requirements-precompute.txt
