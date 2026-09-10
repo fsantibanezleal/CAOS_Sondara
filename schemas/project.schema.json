@@ -1,0 +1,843 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sondara.ml.fasl-work.com/schemas/project.schema.json",
+  "title": "Drillhole project v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "name",
+    "provenance",
+    "frames",
+    "collars",
+    "surveys",
+    "trajectories",
+    "analytes",
+    "supports",
+    "determinations",
+    "geology",
+    "issues"
+  ],
+  "properties": {
+    "schema": {
+      "const": "drillhole.project/v1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "en",
+        "es"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "es": {
+          "type": "string"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "sources",
+        "recipe",
+        "recipeSha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "field",
+            "authored-validation"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "url",
+              "license",
+              "attribution",
+              "sha256",
+              "format",
+              "encoding"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "license": {
+                "type": "string"
+              },
+              "attribution": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "format": {
+                "type": "string"
+              },
+              "encoding": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "recipe": {
+          "type": "string"
+        },
+        "recipeSha256": {
+          "type": "string"
+        }
+      }
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "unit",
+          "horizontalCrs",
+          "verticalDatum",
+          "origin",
+          "assumptions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "projected",
+              "local-metric"
+            ]
+          },
+          "unit": {
+            "const": "m"
+          },
+          "horizontalCrs": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "verticalDatum": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "x",
+                  "y",
+                  "z",
+                  "frameId"
+                ],
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  },
+                  "z": {
+                    "type": "number"
+                  },
+                  "frameId": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "collars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "sourceHoleId",
+          "frameId",
+          "x",
+          "y",
+          "z",
+          "totalDepth",
+          "observedDepthMax",
+          "orientation",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sourceHoleId": {
+            "type": "string"
+          },
+          "frameId": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "totalDepth": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "observedDepthMax": {
+            "type": "number"
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "azimuth",
+                  "dip",
+                  "azimuthReference"
+                ],
+                "properties": {
+                  "azimuth": {
+                    "type": "number"
+                  },
+                  "dip": {
+                    "type": "number"
+                  },
+                  "azimuthReference": {
+                    "enum": [
+                      "true",
+                      "grid",
+                      "magnetic",
+                      "unknown"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "surveys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "holeId",
+          "md",
+          "azimuth",
+          "dip",
+          "azimuthReference",
+          "role",
+          "instrument",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "holeId": {
+            "type": "string"
+          },
+          "md": {
+            "type": "number"
+          },
+          "azimuth": {
+            "type": "number"
+          },
+          "dip": {
+            "type": "number"
+          },
+          "azimuthReference": {
+            "enum": [
+              "true",
+              "grid",
+              "magnetic",
+              "unknown"
+            ]
+          },
+          "role": {
+            "enum": [
+              "measured",
+              "collar-orientation",
+              "compiled-extension",
+              "authored-validation"
+            ]
+          },
+          "instrument": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trajectories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "holeId",
+          "kind",
+          "method",
+          "validFromMd",
+          "validToMd",
+          "azimuthAssumption",
+          "extensionPolicy",
+          "sourceRefs"
+        ],
+        "properties": {
+          "holeId": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "measured-stations",
+              "collar-orientation",
+              "assumed-vertical",
+              "authored-validation"
+            ]
+          },
+          "method": {
+            "enum": [
+              "minimum-curvature",
+              "straight"
+            ]
+          },
+          "validFromMd": {
+            "type": "number"
+          },
+          "validToMd": {
+            "type": "number"
+          },
+          "azimuthAssumption": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extensionPolicy": {
+            "enum": [
+              "error",
+              "hold-last-direction"
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "analytes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "unit",
+          "quantity",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "en",
+              "es"
+            ],
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "es": {
+                "type": "string"
+              }
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "supports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "holeId",
+          "kind",
+          "fromMd",
+          "toMd",
+          "atMd",
+          "samplingMeasure",
+          "components",
+          "sourceDescription",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "holeId": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "interval",
+              "sampling-envelope",
+              "point",
+              "unknown"
+            ]
+          },
+          "fromMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "toMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "atMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "samplingMeasure": {
+            "enum": [
+              "uniform-length",
+              "weighted-components",
+              "point",
+              "unknown"
+            ]
+          },
+          "components": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "fromMd",
+                    "toMd",
+                    "weight"
+                  ],
+                  "properties": {
+                    "fromMd": {
+                      "type": "number"
+                    },
+                    "toMd": {
+                      "type": "number"
+                    },
+                    "weight": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "sourceDescription": {
+            "type": "string"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "determinations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "supportId",
+          "analyteId",
+          "value",
+          "rawValue",
+          "qualifier",
+          "detectionLimit",
+          "unit",
+          "method",
+          "lab",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "supportId": {
+            "type": "string"
+          },
+          "analyteId": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rawValue": {
+            "type": "string"
+          },
+          "qualifier": {
+            "enum": [
+              null,
+              "below-detection",
+              "above-range",
+              "missing"
+            ]
+          },
+          "detectionLimit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lab": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "geology": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "holeId",
+          "kind",
+          "fromMd",
+          "toMd",
+          "atMd",
+          "sourceCode",
+          "sourceDescription",
+          "mappedCode",
+          "mappingVersion",
+          "sourceRefs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "holeId": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "interval",
+              "point"
+            ]
+          },
+          "fromMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "toMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "atMd": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sourceCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceDescription": {
+            "type": "string"
+          },
+          "mappedCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mappingVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sourceId",
+                "rowId"
+              ],
+              "properties": {
+                "sourceId": {
+                  "type": "string"
+                },
+                "rowId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "code",
+          "table",
+          "rowIds",
+          "holeId",
+          "message",
+          "action"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "rowIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "holeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

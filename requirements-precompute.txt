@@ -1,0 +1,4 @@
+# Canonical OFFLINE lane. Keep one pinned entry per research-selected engine.
+# The example delegates to the tiny teaching engine; instantiated products replace
+# or extend this file and document every dependency under docs/frameworks/.
+-r data-pipeline/requirements.txt
