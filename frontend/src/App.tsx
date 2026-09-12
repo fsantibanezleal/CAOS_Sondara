@@ -7,7 +7,7 @@ type Sample = { depth: number; value: number; hole: number };
 type Estimate = { mean: number; uncertainty: number; cv: number; range: number; count: number };
 
 const scenarios: Scenario[] = [
-  { id: 'copper-ridge', name: 'Copper Ridge', holes: 18, assays: 684, grade: 0.82, range: 142, color: '#f2b56b', summary: 'Porphyry copper · three benches · local metric frame' },
+  { id: 'copper-ridge', name: 'Copper Ridge', holes: 3, assays: 78, grade: 0.82, range: 142, color: '#f2b56b', summary: 'Porphyry copper · three benches · local metric frame' },
   { id: 'north-shear', name: 'North Shear', holes: 12, assays: 431, grade: 2.34, range: 88, color: '#e8839b', summary: 'Structural corridor · high grade shoots · tighter continuity' },
   { id: 'lithium-basin', name: 'Salar Edge', holes: 24, assays: 912, grade: 1.17, range: 216, color: '#7ed7d0', summary: 'Brine interface · broad support · layered basin model' },
 ];
@@ -114,3 +114,4 @@ export default function App() {
     <footer className="app-footer"><span>SONDARA / LOCAL-FIRST SUBSURFACE WORKBENCH</span><span>v0.2.0 · WebGL reconstruction · Apache-2.0</span><span>Data remains in this browser</span></footer>
   </main>;
 }
+
