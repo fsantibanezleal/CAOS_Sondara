@@ -1,45 +1,41 @@
 import { useMemo, useState } from 'react';
+import SubsurfaceScene, { SceneLayers, SceneView } from './components/SubsurfaceScene';
 import './styles.css';
 
-type Scenario = { id: string; name: string; holes: number; assays: number; grade: number; range: number; color: string };
+type Scenario = { id: string; name: string; holes: number; assays: number; grade: number; range: number; color: string; summary: string };
 type Sample = { depth: number; value: number; hole: number };
 type Estimate = { mean: number; uncertainty: number; cv: number; range: number; count: number };
 
 const scenarios: Scenario[] = [
-  { id: 'copper-ridge', name: 'Copper Ridge · porphyry', holes: 18, assays: 684, grade: 0.82, range: 142, color: '#f2b56b' },
-  { id: 'north-shear', name: 'North Shear · structural', holes: 12, assays: 431, grade: 2.34, range: 88, color: '#e8839b' },
-  { id: 'lithium-basin', name: 'Salar Edge · brine interface', holes: 24, assays: 912, grade: 1.17, range: 216, color: '#7ed7d0' },
+  { id: 'copper-ridge', name: 'Copper Ridge', holes: 18, assays: 684, grade: 0.82, range: 142, color: '#f2b56b', summary: 'Porphyry copper · three benches · local metric frame' },
+  { id: 'north-shear', name: 'North Shear', holes: 12, assays: 431, grade: 2.34, range: 88, color: '#e8839b', summary: 'Structural corridor · high grade shoots · tighter continuity' },
+  { id: 'lithium-basin', name: 'Salar Edge', holes: 24, assays: 912, grade: 1.17, range: 216, color: '#7ed7d0', summary: 'Brine interface · broad support · layered basin model' },
 ];
-const bands = [['Oxide cap', 0, 24, '#283d4a'], ['Weathered halo', 24, 72, '#324b4f'], ['Potassic core', 72, 134, '#4a3f49'], ['Propylitic wall', 134, 198, '#2b4a50'], ['Fresh basement', 198, 260, '#243642']] as const;
-const depthY = (depth: number) => 116 + depth * 1.62;
-const methodNames = ['Ordinary kriging', 'Simple kriging', 'Universal kriging', 'Indicator kriging', 'Sequential Gaussian simulation', 'Direct sampling (MPS)'];
-
-function seedSamples(scenario: Scenario): Sample[] {
-  return Array.from({ length: 44 }, (_, i) => ({
-    depth: 8 + ((i * 29) % 242),
-    value: Math.max(0.03, scenario.grade * (0.34 + Math.abs(Math.sin(i * 0.71 + scenario.grade)) * 1.35)),
-    hole: i % 3,
-  }));
-}
+const methods = ['Ordinary kriging', 'Simple kriging', 'Universal kriging', 'Indicator kriging', 'Sequential Gaussian simulation', 'Direct sampling (MPS)'];
+const seedSamples = (scenario: Scenario): Sample[] => Array.from({ length: 44 }, (_, i) => ({
+  depth: 8 + ((i * 29) % 242),
+  value: Math.max(0.03, scenario.grade * (0.34 + Math.abs(Math.sin(i * 0.71 + scenario.grade)) * 1.35)),
+  hole: i % 3,
+}));
 
 function estimateAt(samples: Sample[], depth: number, method: string, scenario: Scenario): Estimate {
-  const nearest = [...samples].sort((a, b) => Math.abs(a.depth - depth) - Math.abs(b.depth - depth)).slice(0, method === 'Direct sampling (MPS)' ? 12 : 10);
+  const nearest = [...samples].sort((a, b) => Math.abs(a.depth - depth) - Math.abs(b.depth - depth)).slice(0, method.includes('MPS') ? 12 : 10);
   const power = method.includes('Simple') ? 1.55 : method.includes('Universal') ? 1.3 : 1.8;
-  const weights = nearest.map((s) => 1 / Math.pow(Math.abs(s.depth - depth) + 2, power));
-  const weightTotal = weights.reduce((a, b) => a + b, 0);
-  const mean = nearest.reduce((sum, s, i) => sum + s.value * weights[i], 0) / weightTotal;
-  const variance = nearest.reduce((sum, s, i) => sum + weights[i] * (s.value - mean) ** 2, 0) / weightTotal;
+  const weights = nearest.map((sample) => 1 / Math.pow(Math.abs(sample.depth - depth) + 2, power));
+  const total = weights.reduce((a, b) => a + b, 0);
+  const mean = nearest.reduce((sum, sample, index) => sum + sample.value * weights[index], 0) / total;
+  const variance = nearest.reduce((sum, sample, index) => sum + weights[index] * (sample.value - mean) ** 2, 0) / total;
   const uncertainty = Math.sqrt(variance) * (method.includes('Indicator') ? 1.18 : method.includes('simulation') || method.includes('MPS') ? 1.35 : 1);
-  const residual = samples.reduce((sum, s) => sum + Math.abs(s.value - scenario.grade), 0) / Math.max(samples.length, 1);
+  const residual = samples.reduce((sum, sample) => sum + Math.abs(sample.value - scenario.grade), 0) / Math.max(samples.length, 1);
   return { mean, uncertainty, cv: Math.max(0, Math.min(0.99, 1 - residual / (scenario.grade * 2.5))), range: scenario.range, count: samples.length };
 }
 
 function parseAssayCsv(text: string, hole: number): Sample[] {
   const rows = text.trim().split(/\r?\n/).filter(Boolean);
   if (rows.length < 2) return [];
-  const headers = rows[0].split(',').map((h) => h.trim().toLowerCase());
-  const depthIndex = headers.findIndex((h) => ['depth', 'mid_depth', 'mid', 'from', 'to'].some((key) => h.includes(key)));
-  const valueIndex = headers.findIndex((h) => ['cu', 'grade', 'assay', 'value', 'au', 'li'].some((key) => h === key || h.includes(key)));
+  const headers = rows[0].split(',').map((header) => header.trim().toLowerCase());
+  const depthIndex = headers.findIndex((header) => ['depth', 'mid_depth', 'mid', 'from', 'to'].some((key) => header.includes(key)));
+  const valueIndex = headers.findIndex((header) => ['cu', 'grade', 'assay', 'value', 'au', 'li'].some((key) => header === key || header.includes(key)));
   if (depthIndex < 0 || valueIndex < 0) return [];
   return rows.slice(1).flatMap((row) => {
     const cells = row.split(',').map((cell) => cell.trim());
@@ -52,37 +48,69 @@ function parseAssayCsv(text: string, hole: number): Sample[] {
 export default function App() {
   const [scenarioId, setScenarioId] = useState(scenarios[0].id);
   const [metric, setMetric] = useState<'grade' | 'uncertainty' | 'lithology'>('grade');
-  const [method, setMethod] = useState(methodNames[0]);
+  const [method, setMethod] = useState(methods[0]);
   const [selectedDepth, setSelectedDepth] = useState(132);
+  const [view, setView] = useState<SceneView>('orbit');
   const [playing, setPlaying] = useState(true);
+  const [layers, setLayers] = useState<SceneLayers>({ boreholes: true, assay: true, ore: true, geology: true, grid: true });
   const [sources, setSources] = useState(['collar_survey.csv', 'assay_2024.csv', 'lithology_intervals.csv']);
   const [customSamples, setCustomSamples] = useState<Sample[]>([]);
   const [running, setRunning] = useState(false);
-  const [lastRun, setLastRun] = useState('Local estimate ready');
+  const [status, setStatus] = useState('Scene ready · 44 local supports');
+  const [infoPanel, setInfoPanel] = useState('workbench');
   const scenario = scenarios.find((item) => item.id === scenarioId) ?? scenarios[0];
   const samples = useMemo(() => [...seedSamples(scenario), ...customSamples], [scenario, customSamples]);
   const result = useMemo(() => estimateAt(samples, selectedDepth, method, scenario), [samples, selectedDepth, method, scenario]);
-  const profile = useMemo(() => Array.from({ length: 15 }, (_, i) => { const depth = i * 18 + 8; return { depth, value: estimateAt(samples, depth, method, scenario).mean }; }), [samples, method, scenario]);
+  const selected = useMemo(() => [...samples].sort((a, b) => Math.abs(a.depth - selectedDepth) - Math.abs(b.depth - selectedDepth))[0], [samples, selectedDepth]);
 
+  const updateLayer = (key: keyof SceneLayers) => setLayers((current) => ({ ...current, [key]: !current[key] }));
+  const chooseScenario = (id: string) => { setScenarioId(id); setCustomSamples([]); setSelectedDepth(132); setStatus('Loaded ' + (scenarios.find((item) => item.id === id)?.name ?? 'case') + ' reconstruction'); };
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
     const incoming = Array.from(files);
     setSources((current) => [...new Set([...current, ...incoming.map((file) => file.name)])]);
     const parsed = (await Promise.all(incoming.map(async (file, index) => file.name.toLowerCase().endsWith('.csv') ? parseAssayCsv(await file.text(), index % 3) : []))).flat();
-    if (parsed.length) { setCustomSamples((current) => [...current, ...parsed]); setLastRun(`Loaded ${parsed.length} assay observations from local files`); }
+    if (parsed.length) { setCustomSamples((current) => [...current, ...parsed]); setStatus('Parsed ' + parsed.length + ' assay observations into the scene'); }
+    else setStatus('Source registered · add a CSV with depth and grade columns for live points');
   };
-  const runEstimate = () => { setRunning(true); setLastRun('Solving local support weights…'); window.setTimeout(() => { setRunning(false); setLastRun(`${method} solved locally · ${result.count} observations`); }, 420); };
+  const runEstimate = () => { setRunning(true); setStatus('Solving ' + method.toLowerCase() + ' support weights…'); window.setTimeout(() => { setRunning(false); setStatus(method + ' solved locally · ' + result.count + ' supports'); }, 460); };
+  const resetScene = () => { setView('orbit'); setPlaying(true); setSelectedDepth(132); setLayers({ boreholes: true, assay: true, ore: true, geology: true, grid: true }); setStatus('Scene reset to full reconstruction'); };
 
-  return <main className="sondara-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">◈</span><strong>SONDARA</strong><span className="brand-context">DRILLHOLE INTELLIGENCE</span></div><nav><button className="nav-active">Workbench</button><button>Data contract</button><button>Methods</button><button>Cases</button></nav><div className="top-actions"><span className="local-dot" /> LOCAL COMPUTE <button className="icon-button">◐</button></div></header>
-    <section className="command-bar"><div><span className="eyebrow">PROJECT / OPEN PIT STUDY</span><h1>Subsurface signal, made inspectable.</h1><p>Load collars, surveys, assays and geology. Trace continuity, test support and compare estimators in one spatial model.</p></div><div className="command-controls"><label>Case<select value={scenarioId} onChange={(event) => { setScenarioId(event.target.value); setCustomSamples([]); }}>{scenarios.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="primary-button" onClick={runEstimate} disabled={running}>{running ? 'Solving…' : 'Run local estimate'} <span>↗</span></button></div></section>
-    <section className="workspace-grid">
-      <aside className="rail left-rail"><div className="rail-heading"><span>01</span><h2>Sources</h2><span className="check">✓</span></div><p className="rail-copy">Every observation keeps its support, unit and provenance.</p><label className="dropzone"><input type="file" multiple accept=".csv,.json,.parquet" onChange={(event) => void addFiles(event.target.files)} /><span className="upload-icon">＋</span><strong>Drop source files</strong><small>CSV · JSON · Parquet</small></label><div className="source-list">{sources.map((file, index) => <div className="source-row" key={file}><span className="source-icon">{index === 0 ? '⌖' : index === 1 ? '∿' : '▦'}</span><span><strong>{file}</strong><small>{index === 0 ? `${scenario.holes} collars · projected CRS` : index === 1 ? `${scenario.assays} intervals · grade` : '5 lithologies · coded'}</small></span><b>✓</b></div>)}</div><button className="text-button">＋ Add source recipe</button><div className="rail-divider" /><div className="rail-heading compact"><span>02</span><h2>Support</h2></div><div className="support-card"><div><span>Composite length</span><strong>2.0 m</strong></div><div><span>Survey mode</span><strong>Minimum curvature</strong></div><div><span>Frame</span><strong>Local metric · metres</strong></div></div></aside>
-      <section className="viz-column"><div className="viz-toolbar"><div><span className="eyebrow">SPATIAL MODEL / {scenario.name.toUpperCase()}</span><strong>Section explorer</strong><span className="toolbar-muted">{scenario.holes} holes · {result.count} supports · Z 0–260 m</span></div><div className="toolbar-actions"><button className={playing ? 'toolbar-active' : ''} onClick={() => setPlaying((value) => !value)}>{playing ? 'Ⅱ Pause field' : '▶ Play field'}</button><button onClick={() => setSelectedDepth((depth) => depth === 132 ? 196 : 132)}>⌖ Follow cursor</button><button>⤢</button></div></div>
-        <div className={`section-canvas ${playing ? 'is-playing' : ''}`}><div className="canvas-grid" /><div className="canvas-label top-left"><span>Y + 420</span><span>X + 180</span></div><div className="canvas-label bottom-right">LOCAL FRAME · EPSG:32719</div><svg className="section-svg" viewBox="0 0 920 580" role="img" aria-label="Animated three-dimensional drillhole section with assay points and grade continuity"><defs><linearGradient id="depthFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#101d29" /><stop offset="1" stopColor="#0c1821" /></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="5" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter><linearGradient id="oreRibbon"><stop stopColor={scenario.color} stopOpacity=".05" /><stop offset=".45" stopColor={scenario.color} stopOpacity=".64" /><stop offset="1" stopColor="#e8839b" stopOpacity=".03" /></linearGradient></defs><rect x="42" y="52" width="836" height="478" rx="18" fill="url(#depthFade)" stroke="#284453" />{bands.map(([label, from, to, color]) => <g key={label}><rect x="62" y={depthY(from)} width="796" height={(to - from) * 1.62} fill={color} opacity=".44" /><text x="78" y={depthY(from + 13)} className="band-label">{label}</text></g>)}<path d="M210 112 C235 180 190 270 244 356 S205 464 223 518" fill="none" stroke="#6e8790" strokeWidth="7" opacity=".72" /><path d="M210 112 C235 180 190 270 244 356 S205 464 223 518" fill="none" stroke="#d6f1e5" strokeWidth="2" strokeDasharray="5 10" className="survey-line" /><path d="M485 112 C452 192 532 278 477 359 S510 466 486 518" fill="none" stroke="#6e8790" strokeWidth="7" opacity=".72" /><path d="M485 112 C452 192 532 278 477 359 S510 466 486 518" fill="none" stroke="#d6f1e5" strokeWidth="2" strokeDasharray="5 10" className="survey-line reverse" /><path d="M746 112 C716 188 780 270 724 354 S759 458 733 518" fill="none" stroke="#6e8790" strokeWidth="7" opacity=".72" /><path d="M746 112 C716 188 780 270 724 354 S759 458 733 518" fill="none" stroke="#d6f1e5" strokeWidth="2" strokeDasharray="5 10" className="survey-line" /><path d="M218 314 C325 260 407 292 486 318 S640 340 736 288" fill="none" stroke="url(#oreRibbon)" strokeWidth="34" filter="url(#glow)" className="ore-ribbon" /><path d="M218 314 C325 260 407 292 486 318 S640 340 736 288" fill="none" stroke={scenario.color} strokeWidth="2" strokeDasharray="2 13" className="grade-front" />{[210, 485, 746].map((x, hole) => <g key={x}><circle cx={x} cy="112" r="10" fill="#d4e7e6" stroke={scenario.color} strokeWidth="4" /><text x={x - 20} y="91" className="hole-label">DH-{String(hole + 1).padStart(2, '0')}</text></g>)}{samples.map((point, index) => { const x = [210, 485, 746][point.hole] + Math.sin(index * 1.4) * 18 + (index % 2 ? 5 : -5); const y = depthY(point.depth); const high = metric === 'uncertainty' ? Math.abs(point.value - result.mean) > result.uncertainty : metric === 'lithology' ? point.depth > 134 : point.value > result.mean * 1.45; const radius = high ? 6 : 3.5; return <g key={`${point.depth}-${index}`} className="assay-point" onClick={() => setSelectedDepth(point.depth)}><circle cx={x} cy={y} r={radius} fill={high ? scenario.color : '#67c8c1'} opacity=".96" /><circle cx={x} cy={y} r={high ? 13 : 7} fill="none" stroke={high ? scenario.color : '#67c8c1'} opacity=".18" /></g>; })}<line x1="62" x2="858" y1={depthY(selectedDepth)} y2={depthY(selectedDepth)} stroke={scenario.color} strokeWidth="1.5" strokeDasharray="7 7" /><rect x="72" y={depthY(selectedDepth) - 19} width="132" height="24" rx="12" fill={scenario.color} /><text x="85" y={depthY(selectedDepth) - 3} className="cursor-label">{selectedDepth} m · {result.mean.toFixed(2)} %</text>{[0, 50, 100, 150, 200, 250].map((depth) => <g key={depth}><line x1="48" x2="58" y1={depthY(depth)} y2={depthY(depth)} stroke="#59717a" /><text x="18" y={depthY(depth) + 4} className="depth-label">{depth}</text></g>)}</svg><div className="viz-legend"><span><i className="legend-dot high" /> High grade</span><span><i className="legend-dot continuity" /> Continuity front</span><span><i className="legend-dot hole" /> Surveyed trace</span></div></div><div className="viz-footer"><span><b>CURSOR</b> {selectedDepth} m · DH-02 · {result.mean.toFixed(2)} % · support 2 m</span><span className="quality"><i /> {lastRun}</span></div></section>
-      <aside className="rail right-rail"><div className="rail-heading"><span>03</span><h2>Estimate</h2><span className="live-pill">LIVE</span></div><label>Method<select value={method} onChange={(event) => setMethod(event.target.value)}>{methodNames.map((name) => <option key={name}>{name}</option>)}</select></label><div className="metric-switch">{(['grade', 'uncertainty', 'lithology'] as const).map((item) => <button key={item} className={metric === item ? 'active' : ''} onClick={() => setMetric(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><div className="stat-grid"><div><span>Mean estimate</span><strong>{result.mean.toFixed(2)} %</strong><small>local support</small></div><div><span>Spatial range</span><strong>{result.range} m</strong><small>major direction</small></div><div><span>Cross validation</span><strong>{result.cv.toFixed(2)}</strong><small>R² · {result.count} samples</small></div><div><span>P90 uncertainty</span><strong>±{result.uncertainty.toFixed(2)}</strong><small>local support</small></div></div><div className="confidence"><div className="confidence-head"><span>Support confidence</span><strong>{Math.round(Math.max(0, 100 - result.uncertainty / Math.max(result.mean, .01) * 100))}%</strong></div><div className="confidence-bar"><i style={{ width: `${Math.max(8, Math.min(96, 100 - result.uncertainty / Math.max(result.mean, .01) * 100))}%` }} /></div><p>{customSamples.length ? 'Uploaded observations are included in this local solve.' : 'Seeded case observations are active; upload an assay CSV to replace the planning signal.'}</p></div><div className="rail-divider" /><div className="rail-heading compact"><span>04</span><h2>Diagnostics</h2></div><div className="diagnostic-row"><span className="diag-ok">●</span><span>Coordinate frame</span><strong>OK</strong></div><div className="diagnostic-row"><span className="diag-ok">●</span><span>Support overlaps</span><strong>0</strong></div><div className="diagnostic-row"><span className="diag-warn">●</span><span>Extrapolation cells</span><strong>{Math.round(100 - result.cv * 100)}%</strong></div><button className="outline-button" onClick={() => setLastRun(`Validation: ${result.count} supports · residual CV ${(1 - result.cv).toFixed(2)}`)}>Open validation report ↗</button></aside>
+  return <main className="sondara-app">
+    <header className="app-header">
+      <div className="brand-lockup"><span className="brand-glyph">◈</span><div><strong>SONDARA</strong><small>DRILLHOLE INTELLIGENCE</small></div></div>
+      <div className="header-context"><span className="eyebrow">ACTIVE PROJECT</span><strong>{scenario.name} / 3D RECONSTRUCTION</strong></div>
+      <div className="header-actions"><span className="compute-badge"><i /> LOCAL GPU READY</span><button onClick={() => setInfoPanel('methods')}>Methods</button><button onClick={() => setInfoPanel('cases')}>Cases</button><button className="header-icon" onClick={resetScene}>↺</button></div>
+    </header>
+
+    <section className="project-bar">
+      <div><span className="eyebrow">PROJECT / {scenario.id.toUpperCase()}</span><h1>See the deposit as a system.</h1><p>{scenario.summary}. Inspect supports, continuity and uncertainty in a navigable spatial model.</p></div>
+      <div className="project-actions"><label>CASE<select value={scenarioId} onChange={(event) => chooseScenario(event.target.value)}>{scenarios.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="accent-button" onClick={runEstimate} disabled={running}>{running ? 'Solving…' : 'Run local solve'} <span>↗</span></button></div>
     </section>
-    <section className="analysis-strip"><div className="strip-title"><span className="eyebrow">ANALYSIS / {method.toUpperCase()}</span><h2>Does the signal travel between holes?</h2><p>Linked diagnostics update with the selected support and estimator.</p></div><div className="chart-card"><div className="chart-head"><span>Directional variogram</span><strong>{result.range} m range</strong></div><svg viewBox="0 0 330 104" className="mini-chart"><path d="M10 90 C38 18 75 26 106 45 S177 77 320 82" fill="none" stroke={scenario.color} strokeWidth="3" /><path d="M10 92 L320 92" stroke="#38505a" /><path d="M10 20 L10 92" stroke="#38505a" /><circle cx="106" cy="45" r="5" fill={scenario.color} className="chart-pulse" /><text x="102" y="102" className="axis-label">range</text><text x="12" y="16" className="axis-label">γ(h)</text></svg></div><div className="chart-card"><div className="chart-head"><span>Selected hole · DH-02</span><strong>grade profile</strong></div><svg viewBox="0 0 330 104" className="mini-chart"><path d={profile.map((item, index) => `${index ? 'L' : 'M'} ${18 + Math.min(280, item.value * 70)} ${10 + index * 6.2}`).join(' ')} fill="none" stroke="#7ed7d0" strokeWidth="3" /><path d="M18 8 L18 98 M18 98 L318 98" stroke="#38505a" /><text x="24" y="102" className="axis-label">0 m</text><text x="279" y="102" className="axis-label">260 m</text></svg></div><div className="decision-card"><span>MODEL DECISION</span><strong>{method} · {result.count} supports</strong><p>Estimate is computed in this browser from declared local supports. Upload a project file and inspect residuals before resource classification.</p><button className="text-button" onClick={() => setLastRun(`${method}: local support weights recomputed at ${selectedDepth} m`)}>View method notes ↗</button></div></section>
-    <footer className="footer"><span>SONDARA · CAOS research project</span><span>Local-first · Apache-2.0 · no login</span><span>v0.1.2 · data never leaves this browser</span></footer>
+
+    <div className="app-body">
+      <aside className="command-rail">
+        <div className="rail-section rail-intro"><span className="step-index">01</span><div><h2>Data stack</h2><p>Sources remain local, traceable and visible in the reconstruction.</p></div></div>
+        <label className="dropzone-v2"><input type="file" multiple accept=".csv,.json,.parquet" onChange={(event) => void addFiles(event.target.files)} /><span className="drop-icon">＋</span><strong>Load source files</strong><small>collar · survey · assay · geology</small></label>
+        <div className="source-stack">{sources.map((file, index) => <div className="source-chip" key={file}><span className="source-symbol">{index === 0 ? '⌖' : index === 1 ? '∿' : '▦'}</span><div><strong>{file}</strong><small>{index === 0 ? scenario.holes + ' collars · trajectory' : index === 1 ? scenario.assays + ' intervals · grade' : 'coded lithology intervals'}</small></div><b>✓</b></div>)}</div>
+        <div className="rail-section layer-heading"><span className="step-index">02</span><div><h2>Scene layers</h2><p>Toggle the reconstruction without leaving the spatial context.</p></div></div>
+        <div className="layer-list">{([['boreholes', 'Surveyed boreholes', 'trajectory'], ['assay', 'Assay supports', 'grade points'], ['ore', 'Ore continuity shell', 'interpreted'], ['geology', 'Geology contacts', 'wireframe'], ['grid', 'Coordinate grid', 'local frame']] as [keyof SceneLayers, string, string][]).map(([key, label, note]) => <button className={'layer-toggle' + (layers[key] ? ' enabled' : '')} key={key} onClick={() => updateLayer(key)}><span className="layer-check">{layers[key] ? '✓' : '·'}</span><span><strong>{label}</strong><small>{note}</small></span></button>)}</div>
+        <div className="rail-footer"><span className="status-dot" /> {status}</div>
+      </aside>
+
+      <section className="scene-column">
+        <div className="scene-toolbar"><div className="view-switch"><span className="eyebrow">VIEW</span>{([['orbit', 'Orbit'], ['section', 'Section'], ['plan', 'Plan']] as [SceneView, string][]).map(([key, label]) => <button className={view === key ? 'selected' : ''} key={key} onClick={() => setView(key)}>{label}</button>)}</div><div className="scene-actions"><button className={playing ? 'selected-action' : ''} onClick={() => setPlaying((value) => !value)}>{playing ? 'Ⅱ Animate field' : '▶ Animate field'}</button><button onClick={resetScene}>Fit scene</button><button onClick={() => setStatus('Capture prepared · use browser save to export the current view')}>Export view</button></div></div>
+        <div className="scene-frame"><SubsurfaceScene samples={samples} selectedDepth={selectedDepth} onSelectDepth={(depth) => { setSelectedDepth(depth); setStatus('Selected support at ' + depth + ' m'); }} metric={metric} layers={layers} view={view} playing={playing} scenarioColor={scenario.color} /><div className="scene-hud hud-top"><span className="hud-kicker">LIVE RECONSTRUCTION</span><strong>{scenario.name}</strong><small>{result.count} supports · {scenario.holes} holes · EPSG:32719</small></div><div className="scene-hud hud-right"><span><i className="legend-swatch grade" /> grade</span><span><i className="legend-swatch shell" /> ore shell</span><span><i className="legend-swatch survey" /> survey</span></div><div className="scene-readout"><span className="readout-label">SELECTED DEPTH</span><strong>{selectedDepth} m</strong><span>DH-{String((selected?.hole ?? 0) + 1).padStart(2, '0')} · {result.mean.toFixed(2)} % Cu · ±{result.uncertainty.toFixed(2)}</span></div></div>
+        <div className="depth-dock"><div className="dock-label"><span className="eyebrow">DEPTH SLICE</span><strong>{selectedDepth} m</strong></div><input aria-label="Depth slice" type="range" min="0" max="260" value={selectedDepth} onChange={(event) => setSelectedDepth(Number(event.target.value))} /><div className="dock-range"><span>0 m</span><span>130 m</span><span>260 m</span></div><div className="metric-switch-v2">{(['grade', 'uncertainty', 'lithology'] as const).map((item) => <button key={item} className={metric === item ? 'active' : ''} onClick={() => setMetric(item)}>{item}</button>)}</div></div>
+      </section>
+
+      <aside className="inspector-rail">
+        <div className="inspector-tabs"><button className={infoPanel === 'workbench' ? 'active' : ''} onClick={() => setInfoPanel('workbench')}>Inspect</button><button className={infoPanel === 'methods' ? 'active' : ''} onClick={() => setInfoPanel('methods')}>Methods</button><button className={infoPanel === 'cases' ? 'active' : ''} onClick={() => setInfoPanel('cases')}>Cases</button></div>
+        {infoPanel === 'workbench' && <><div className="inspector-title"><span className="step-index">03</span><div><h2>Spatial inspector</h2><p>Selection follows the 3D scene.</p></div></div><div className="selection-card"><span className="eyebrow">ACTIVE SUPPORT</span><strong>DH-{String((selected?.hole ?? 0) + 1).padStart(2, '0')} · {selectedDepth} m</strong><div className="selection-grid"><div><small>Cu grade</small><b>{result.mean.toFixed(2)} %</b></div><div><small>P90 uncertainty</small><b>±{result.uncertainty.toFixed(2)}</b></div><div><small>Support range</small><b>{result.range} m</b></div><div><small>Cross validation</small><b>{result.cv.toFixed(2)}</b></div></div></div><div className="inspector-block"><span className="eyebrow">ESTIMATOR</span><select className="wide-select" value={method} onChange={(event) => setMethod(event.target.value)}>{methods.map((name) => <option key={name}>{name}</option>)}</select><div className="solver-callout"><span className="status-dot" /><div><strong>{running ? 'Computing local solve' : 'Browser solver available'}</strong><small>Supports stay on this device · no login</small></div></div><button className="full-button" onClick={runEstimate} disabled={running}>{running ? 'Solving…' : 'Recompute at selected depth'} <span>↗</span></button></div><div className="inspector-block diagnostics"><span className="eyebrow">QUALITY GATES</span><div><i className="ok-dot" /> coordinate frame <b>OK</b></div><div><i className="ok-dot" /> support overlaps <b>0</b></div><div><i className="warn-dot" /> extrapolation cells <b>{Math.round(100 - result.cv * 100)}%</b></div></div></>}
+        {infoPanel === 'methods' && <div className="info-view"><span className="eyebrow">METHODS / LOCAL LANE</span><h2>Compare the spatial assumptions.</h2><p>Change the estimator and watch the support weighting, uncertainty and profile update in the same 3D context.</p>{methods.map((name, index) => <button className={'method-row' + (method === name ? ' chosen' : '')} key={name} onClick={() => { setMethod(name); setInfoPanel('workbench'); }}>{String(index + 1).padStart(2, '0')}<span><strong>{name}</strong><small>{index < 3 ? 'continuous estimate' : index === 3 ? 'threshold probability' : 'realization / pattern'}</small></span><b>›</b></button>)}</div>}
+        {infoPanel === 'cases' && <div className="info-view"><span className="eyebrow">CASES / AUTHORED FIXTURES</span><h2>Choose the geological story.</h2><p>Each case changes the colour field, support density and spatial continuity while keeping the controls consistent.</p>{scenarios.map((item) => <button className={'case-row' + (scenario.id === item.id ? ' chosen' : '')} key={item.id} onClick={() => { chooseScenario(item.id); setInfoPanel('workbench'); }}><i style={{ background: item.color }} /><span><strong>{item.name}</strong><small>{item.summary}</small></span><b>›</b></button>)}</div>}
+      </aside>
+    </div>
+    <footer className="app-footer"><span>SONDARA / LOCAL-FIRST SUBSURFACE WORKBENCH</span><span>v0.2.0 · WebGL reconstruction · Apache-2.0</span><span>Data remains in this browser</span></footer>
   </main>;
 }
