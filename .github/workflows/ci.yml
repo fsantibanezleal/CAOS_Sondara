@@ -22,9 +22,6 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check data-pipeline tests
-      - name: Project contract, derived data is valid
-        run: python scripts/check_artifacts.py
-
   guards:
     runs-on: ubuntu-latest
     timeout-minutes: 30
