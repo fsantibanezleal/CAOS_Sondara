@@ -100,6 +100,18 @@ nugget and the validation error, as support averaging predicts. Every method pre
 kriging needed its declared enlarged neighbourhood for 39 samples of the 1 m and 19 of the 2 m hole-group populations,
 where the chosen holes lay in one vertical plane.
 
+## Evaluation
+
+On the 23 hole-group test holes (770 one-metre samples), SK, OK, IDW and LMC cokriging are within 0.4 wt% of MAE of
+each other (OK RMSE 13.53 wt% Fe), NN is 2.7 wt% worse, and universal kriging extrapolates its local drift (77
+estimates outside the training range). The kriging variances are right in size (95 % coverage 0.95), MIK beats the
+training proportions at every decile, and SGS keeps the truths' variance and quantiles where kriging halves the
+variance. On the 24 margin holes, whose Fe mean is 13 wt% below the training mean, the stationary-mean methods (SK,
+SGS) are biased by +6.6 and +8.9 wt% and universal kriging diverges. Longer composites lower every method's error.
+The scenario variants (neighbourhood, anisotropy, interval supports) move OK by less than the hole-block interval;
+cokriging with SiO2 and Al2O3 measured at the target cuts the error to 5.29 wt% through compositional closure, which
+is not spatial evidence. Tables, figures and caveats: [model evaluation](../architecture/06_model-evaluation.md).
+
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158

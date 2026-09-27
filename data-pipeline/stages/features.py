@@ -150,6 +150,33 @@ def cross_variograms(rows, pair, spacing, length, *, seed=SEED):
     ]
 
 
+def directional_cross_variograms(rows, pair, spacing, length, *, seed=SEED):
+    """The four horizontal and the vertical cross variograms on co-located values, defined as the direct ones.
+
+    Not part of the features output: the train stage fits an anisotropic LMC on them when the covariance selected for
+    ordinary kriging is anisotropic.
+    """
+    first, second = pair
+    use = [r for r in rows if first in r["values"] and second in r["values"]]
+    if len(use) < 2:
+        return []
+    xyz = np.array([r["xyz"] for r in use], dtype=float)
+    a = np.array([r["values"][first] for r in use], dtype=float)
+    b = np.array([r["values"][second] for r in use], dtype=float)
+    lag = max(length, 1e-6)
+    edges = max(spacing / 2, lag) * (np.arange(SPATIAL_LAGS + 1) + 0.5)
+    out = []
+    for name, azimuth in DIRECTIONS.items():
+        rad = math.radians(azimuth)
+        out.append(_variogram_record(experimental_cross_variogram(
+            xyz, a, b, edges, direction=[math.sin(rad), math.cos(rad), 0.0], angle_tolerance=ANGLE_TOLERANCE,
+            bandwidth=2 * spacing, max_pairs=MAX_PAIRS, seed=seed), name))
+    out.append(_variogram_record(experimental_cross_variogram(
+        xyz, a, b, lag * (np.arange(DOWNHOLE_LAGS + 1) + 0.5), direction=[0.0, 0.0, 1.0],
+        angle_tolerance=ANGLE_TOLERANCE, bandwidth=2 * spacing, max_pairs=MAX_PAIRS, seed=seed), "vertical"))
+    return out
+
+
 def statistics(rows, analyte, spacing, length) -> dict:
     use = [r for r in rows if analyte in r["values"]]
     if not use:

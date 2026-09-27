@@ -17,8 +17,10 @@ engine is the separate [GeoCond](https://pypi.org/project/geocond/) package, con
 | `stages/features.py` | Training-only statistics, cell declustering, GeoCond experimental variograms (downhole, directional, cross) and declared orientations |
 | `stages/models.py` | Fitted GeoCond models, normal-score tables and variograms as JSON records and back, exactly |
 | `stages/estimators.py` | The eight classical methods on shared observations, targets and neighbourhood, with domain policies and honest statuses |
-| `stages/train.py` | Candidate covariances selected on validation, residual covariance, LMC, indicator covariances, normal scores |
-| `stages/infer.py` | Every method on every test target of each scheme and population |
+| `stages/train.py` | Candidate covariances selected on validation; residual, LMC, indicator and Gaussian-space covariances fitted with the selected structure |
+| `stages/infer.py` | Every method on every test target of each scheme and population, and the scenario variants |
+| `stages/evaluate.py` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration, MIK Brier and log scores, SGS fair CRPS and reproduction, receipts |
+| `stages/scenarios.py` | The scenario matrix: every registered scenario resolved cell by cell to computed, verified or pending with its owner |
 | `learned/` | Contracts, features, networks, training, evaluation and ONNX export for the learned methods (unit SD-7) |
 
 ## Setup and run
@@ -34,6 +36,7 @@ export SONDARA_RAW=/path/outside/the/repo        # raw downloads; never committe
 .venv-pipeline/Scripts/python data-pipeline/run.py features
 .venv-pipeline/Scripts/python data-pipeline/run.py train
 .venv-pipeline/Scripts/python data-pipeline/run.py infer
+.venv-pipeline/Scripts/python data-pipeline/run.py evaluate
 .venv-pipeline/Scripts/python scripts/check_artifacts.py
 ```
 

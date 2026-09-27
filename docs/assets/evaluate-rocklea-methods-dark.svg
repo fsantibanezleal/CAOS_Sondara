@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="452" viewBox="0 0 780 452" role="img" aria-labelledby="t d">
+  <title id="t">Rocklea methods and variants against ordinary kriging</title>
+  <desc id="d">Paired mean absolute-error differences with 95 % hole-block intervals. NN: +2.73 [+1.17, +4.25], RMSE 18.30; IDW: +0.31 [-0.18, +0.81], RMSE 14.14; SK: +0.08 [+0.01, +0.15], RMSE 13.49; UK: +2.52 [+0.07, +6.00], RMSE 19.23; LMC cokriging: +0.38 [-0.11, +0.94], RMSE 13.94; SGS (E-type): +2.01 [+1.45, +2.68], RMSE 14.73; OK, 8 samples, 3 per hole: +0.34 [-0.19, +0.93], RMSE 14.48; OK, 64 samples, no cap: +0.44 [-0.03, +0.90], RMSE 13.90; OK, best isotropic model: +0.27 [-0.04, +0.55], RMSE 13.94; OK, interval supports: +0.17 [-0.23, +0.56], RMSE 13.95; cokriging, secondaries at target: -8.26 [-9.65, -7.02], RMSE 5.29.</desc>
+  <style>
+    .t { font: 600 15px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #c9d1d9; }
+    .b { font: 13px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #c9d1d9; }
+    .m { font: 12px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #8b949e; }
+  </style>
+  <rect width="780" height="452" fill="#0d1117"/>
+  <text class="t" x="24" y="30">Rocklea Fe, 1 m samples, hole-group test holes: each method and variant against ordinary kriging</text>
+  <text class="m" x="24" y="52">Paired mean absolute-error difference (wt% Fe) with its 95 % hole-block bootstrap interval; left of zero beats OK. OK RMSE 13.53 on 770 common targets in 23 holes.</text>
+  <line x1="250.0" y1="68" x2="250.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="250.0" y="416" text-anchor="middle">-10</text>
+  <line x1="292.0" y1="68" x2="292.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="292.0" y="416" text-anchor="middle">-8</text>
+  <line x1="334.0" y1="68" x2="334.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="334.0" y="416" text-anchor="middle">-6</text>
+  <line x1="376.0" y1="68" x2="376.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="376.0" y="416" text-anchor="middle">-4</text>
+  <line x1="418.0" y1="68" x2="418.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="418.0" y="416" text-anchor="middle">-2</text>
+  <line x1="460.0" y1="68" x2="460.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="460.0" y="416" text-anchor="middle">+0</text>
+  <line x1="502.0" y1="68" x2="502.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="502.0" y="416" text-anchor="middle">+2</text>
+  <line x1="544.0" y1="68" x2="544.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="544.0" y="416" text-anchor="middle">+4</text>
+  <line x1="586.0" y1="68" x2="586.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="586.0" y="416" text-anchor="middle">+6</text>
+  <line x1="628.0" y1="68" x2="628.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="628.0" y="416" text-anchor="middle">+8</text>
+  <line x1="670.0" y1="68" x2="670.0" y2="400" stroke="#30363d"/>
+  <text class="m" x="670.0" y="416" text-anchor="middle">+10</text>
+  <line x1="460.0" y1="68" x2="460.0" y2="400" stroke="#c9d1d9"/>
+  <text class="m" x="460.0" y="436" text-anchor="middle">mean |error| minus OK mean |error| (wt% Fe)</text>
+  <text class="m" x="694" y="64">RMSE</text>
+  <text class="b" x="238" y="80" text-anchor="end">NN</text>
+  <line x1="484.7" y1="76" x2="549.3" y2="76" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="517.4" cy="76" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="80">18.30</text>
+  <text class="b" x="238" y="108" text-anchor="end">IDW</text>
+  <line x1="456.3" y1="104" x2="477.0" y2="104" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="466.5" cy="104" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="108">14.14</text>
+  <text class="b" x="238" y="136" text-anchor="end">SK</text>
+  <line x1="460.2" y1="132" x2="463.1" y2="132" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="461.6" cy="132" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="136">13.49</text>
+  <text class="b" x="238" y="164" text-anchor="end">UK</text>
+  <line x1="461.4" y1="160" x2="586.0" y2="160" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="512.8" cy="160" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="164">19.23</text>
+  <text class="b" x="238" y="192" text-anchor="end">LMC cokriging</text>
+  <line x1="457.6" y1="188" x2="479.8" y2="188" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="468.1" cy="188" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="192">13.94</text>
+  <text class="b" x="238" y="220" text-anchor="end">SGS (E-type)</text>
+  <line x1="490.4" y1="216" x2="516.4" y2="216" stroke="#58a6ff" stroke-width="3"/>
+  <circle cx="502.3" cy="216" r="5" fill="#58a6ff"/>
+  <text class="b" x="694" y="220">14.73</text>
+  <text class="b" x="238" y="276" text-anchor="end">OK, 8 samples, 3 per hole</text>
+  <line x1="456.0" y1="272" x2="479.6" y2="272" stroke="#f0883e" stroke-width="3"/>
+  <circle cx="467.1" cy="272" r="5" fill="#f0883e"/>
+  <text class="b" x="694" y="276">14.48</text>
+  <text class="b" x="238" y="304" text-anchor="end">OK, 64 samples, no cap</text>
+  <line x1="459.4" y1="300" x2="478.9" y2="300" stroke="#f0883e" stroke-width="3"/>
+  <circle cx="469.2" cy="300" r="5" fill="#f0883e"/>
+  <text class="b" x="694" y="304">13.90</text>
+  <text class="b" x="238" y="332" text-anchor="end">OK, best isotropic model</text>
+  <line x1="459.1" y1="328" x2="471.6" y2="328" stroke="#f0883e" stroke-width="3"/>
+  <circle cx="465.6" cy="328" r="5" fill="#f0883e"/>
+  <text class="b" x="694" y="332">13.94</text>
+  <text class="b" x="238" y="360" text-anchor="end">OK, interval supports</text>
+  <line x1="455.2" y1="356" x2="471.8" y2="356" stroke="#f0883e" stroke-width="3"/>
+  <circle cx="463.6" cy="356" r="5" fill="#f0883e"/>
+  <text class="b" x="694" y="360">13.95</text>
+  <text class="b" x="238" y="388" text-anchor="end">cokriging, secondaries at target</text>
+  <line x1="257.4" y1="384" x2="312.5" y2="384" stroke="#f0883e" stroke-width="3"/>
+  <circle cx="286.5" cy="384" r="5" fill="#f0883e"/>
+  <text class="b" x="694" y="388">5.29</text>
+  <text class="m" x="24" y="250">scenario variants</text>
+</svg>

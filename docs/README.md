@@ -8,13 +8,13 @@ its validation + these docs are the primary product; the web app is a projection
   trace, the live/precompute gate, the staged pipeline, model evaluation, deploy.
 - **[frameworks/](frameworks/)**, one card per research-chosen engine/library (what/why · install · usage ·
   applying). The deep research, made binding (each is pinned in a `requirements-*.txt`).
-- **[guides/](guides/)**, runnable how-tos: **instantiate the template**, run the precompute pipeline,
-  **bring your own data**, the GPU lane, run the API.
+- **[guides/](guides/)**, runnable how-tos: run the precompute pipeline, **bring your own data**, the GPU lane,
+  run the API.
 - **[cases/](cases/)**, the CATEGORY taxonomy + the coverage matrix + one page per documented case.
 
 ## Honesty + data policy
-- Numbers come from the calibrated engine / committed artifacts, never from a claim. The EXAMPLE engine (SIR) is
-  synthetic and clearly labelled; a real product states sources, licenses and what is real vs synthetic.
+- Numbers come from the pipeline's outputs, never from a claim: the field families are real public data with
+  their sources and licenses in `data/sources/manifest.json`, and the fixtures are authored and labelled as such.
 - Public derived artifacts are committed (`data/derived/`); raw/private sources stay out of git (`data/raw/`,
   vault) per ADR-0055. The two data contracts ([architecture/08_data-contracts.md](architecture/08_data-contracts.md))
   govern raw→pipeline and pipeline→web.

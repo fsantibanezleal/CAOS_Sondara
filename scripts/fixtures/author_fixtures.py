@@ -550,7 +550,8 @@ def main() -> int:
     write_json(OUT / "registry.json", {
         "schema": "drillhole.fixtures/v1",
         "source": "Authored validation fixture catalogue, data dossier of 2026-09-10 (management repository)",
-        "builtStages": ["acquire", "ingest", "import", "preprocess", "dataset", "features", "train", "infer"],
+        "builtStages": ["acquire", "ingest", "import", "preprocess", "dataset", "features", "train", "infer",
+                        "evaluate"],
         "fixtures": fixtures})
     print(f"wrote {len(AUTHORED)} fixture folders and a registry of {len(fixtures)} fixtures to {OUT}")
     return 0

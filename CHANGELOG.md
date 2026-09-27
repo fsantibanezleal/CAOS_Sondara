@@ -4,6 +4,33 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.09.000], 2026-09-27
+
+### Added
+- The `evaluate` stage (unit SD-5, third release): every method scored against the test truths on its own and on
+  the common targets (bias, MAE, RMSE, error quantiles, length-weighted scores, hole-macro RMSE); paired comparisons
+  with ordinary kriging with a 95 % hole-block bootstrap; kriging variance calibration on the calibration holes only;
+  MIK Brier and log scores against the training proportion; SGS fair CRPS, 80 % coverage, convergence at 8, 16 and
+  32 realizations, and the reproduction of the truths' histogram and downhole variogram beside ordinary kriging;
+  training-range flags; a receipt with the split seeds, plan, engine versions and hashes.
+- The scenario variants on Rocklea's hole-group 1 m population (neighbourhood sizes, the best isotropic model,
+  interval-integrated supports, the sparse primary), and predictions of the calibration holes.
+- The scenario matrix: R01 to R12, A01 to A08 and S01 to S12 resolved to 47 computed cells (citing metrics by hash),
+  17 verified by tests and 14 pending with their units (SD-6, SD-7, SD-8), none missing.
+- Metric and scenario checks in `scripts/check_artifacts.py`; requirements R-533 to R-535 and R-540 to R-548 with
+  their tests; the model-evaluation page with the results and their limits, and the evaluation figures.
+
+### Fixed
+- The residual, LMC and indicator covariances were fitted isotropically on omnidirectional lags of half the collar
+  spacing, which cannot see continuity along a hole; they now follow the structure selected for ordinary kriging.
+- The Gaussian-space covariance of SGS is selected on its own among twelve anisotropic candidates by the validation
+  error of simple kriging of the normal scores, and SGS searches the data and 12 simulated nodes apart (GeoCond
+  0.7.0). On Rocklea's test holes the realizations' downhole semivariance at 1 m fell from 223 to 82 (truths 56) and
+  the E-type RMSE from 16.03 to 14.73 wt% Fe. Found by the new reproduction check.
+- Template residue: the model-evaluation page was the template's epidemic example, `data/README.md` described the
+  template's SIR contract, `STRUCTURE.md` was the template blueprint, and the instantiation guide was still shipped.
+  All replaced or removed; the residue guard now catches their markers.
+
 ## [0.08.000], 2026-09-27
 
 ### Added

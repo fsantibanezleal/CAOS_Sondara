@@ -9,6 +9,7 @@ rejects what it should.
 | User files to the pipeline | the import manifest `drillhole.import/v1` | [`schemas/import.schema.json`](../../schemas/import.schema.json): roles, dialect, encoding, missing tokens, units, column map, angle convention, namespaces, resolutions | the importer validates the manifest before reading any file and reports every finding by file, role, hole, severity and reason |
 | Ingest to the later stages | the canonical project `drillhole.project/v2` | [`schemas/project.schema.json`](../../schemas/project.schema.json) | `scripts/check_artifacts.py`: the schema, then the referential rules |
 | Preprocess to the later stages | `drillhole.preprocessed/v1` | [the precompute pipeline](05_precompute-pipeline.md) | `scripts/check_artifacts.py`: the input hash, positions, composite statuses and conservation, populations, overlay |
+| Between the modeling stages | `drillhole.dataset/v1`, `features/v1`, `models/v1`, `predictions/v1`, `metrics/v1`, `scenarios/v1` | [the precompute pipeline](05_precompute-pipeline.md) and [model evaluation](06_model-evaluation.md) | `scripts/check_artifacts.py`: each output names the hash of its input; memberships, rebuildable models, every method on every target, every method scored, and a scenario matrix with no missing, ownerless or stale cell |
 | Pipeline to the web | the artifact manifest | Arrow and Parquet tables, typed geometry, tiled fields, the model registry and metrics under an immutable manifest (unit SD-8) | planned with the export and validate stages |
 
 ## What the contracts refuse

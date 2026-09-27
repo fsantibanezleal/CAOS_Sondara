@@ -5,8 +5,14 @@ population, the primary analyte's covariance is chosen among declared candidates
 anisotropic in four horizontal frames) fitted by GeoCond on the stored training variograms; the candidate with the
 lowest validation RMSE of ordinary kriging wins, and every candidate's fit objective, validation error and coverage is
 recorded. Universal kriging gets a covariance fitted to the residuals of a training-only linear trend; the declared
-variable sets get a jointly fitted LMC; MIK gets indicator covariances at training-weighted deciles; SGS gets a
-normal-score table and a Gaussian-space covariance. Test rows are never read.
+variable sets get a jointly fitted LMC; MIK gets indicator covariances at training-weighted deciles. These three are
+fitted with the structure selected for ordinary kriging (its families, and its frame on the four horizontal and the
+vertical variograms of the transformed values when the selection is anisotropic), so the vertical continuity the
+selection resolved is not lost to a nugget fitted on omnidirectional lags of half the collar spacing. SGS gets a
+normal-score table and a Gaussian-space covariance selected on its own: anisotropic candidates in every frame and
+family set, fitted on the normal scores' four horizontal and vertical variograms (the realizations must reproduce
+continuity along the holes as well as between them), chosen by the validation RMSE of simple kriging of the normal
+scores. Test rows are never read.
 """
 
 from __future__ import annotations
@@ -17,21 +23,19 @@ import numpy as np
 from geocond import (
     NormalScoreTransform,
     ValidationError,
-    experimental_variogram,
     fit_lmc,
     fit_variogram,
     principal_frame,
 )
 from stages.dataset import members
-from stages.estimators import Plan, estimate
+from stages.estimators import Plan, engine, estimate
 from stages.features import (
-    MAX_PAIRS,
-    SEED,
-    SPATIAL_LAGS,
     cross_sets,
     declustered_mean,
+    directional_cross_variograms,
     family_analytes,
     population_rows,
+    variograms,
 )
 from stages.models import model_record, transform_record, variogram_from
 
@@ -96,15 +100,34 @@ def select(candidate_list):
     return min(admissible, key=lambda c: (c["validationRmse"], c["objective"]))
 
 
-def _variogram_on(rows, values, spacing, *, seed=SEED):
-    xyz = np.array([r["xyz"] for r in rows], dtype=float)
-    lag = max(spacing / 2, 1.0)
-    return experimental_variogram(xyz, np.asarray(values, dtype=float), lag * (np.arange(SPATIAL_LAGS + 1) + 0.5),
-                                  max_pairs=MAX_PAIRS, seed=seed)
+class Structure:
+    """The structure selected for ordinary kriging, which every other covariance of the population is fitted with."""
+
+    def __init__(self, selected: dict, spacing: float, length: float):
+        self.families = tuple(selected["families"])
+        self.rotation = None if selected["kind"] == "isotropic" else principal_frame(selected["frameAzimuth"], 0.0, 0.0)
+        self.names = ("omni",) if self.rotation is None else DIRECTIONAL
+        self.spacing, self.length = spacing, length
+
+    def record(self) -> dict:
+        return {"families": list(self.families), "variograms": list(self.names),
+                "frame": None if self.rotation is None else np.asarray(self.rotation).tolist()}
+
+    def variograms_of(self, rows, values):
+        """The variograms of ``values`` at ``rows``, defined exactly as the features stage defines the direct ones."""
+        pseudo = [{**r, "values": {"v": float(x)}} for r, x in zip(rows, values, strict=True)]
+        by_name = {v["name"]: v for v in variograms(pseudo, "v", self.spacing, self.length)}
+        return [variogram_from(by_name[n]) for n in self.names]
+
+    def fit(self, rows, values, families=None):
+        used = self.variograms_of(rows, values)
+        if self.rotation is None:
+            return fit_variogram(used, families or self.families, isotropic=True)
+        return fit_variogram(used, families or self.families, rotation=self.rotation)
 
 
-def residual_model(train, analyte, spacing, families):
-    """A training-only linear trend in x, y, z and the isotropic covariance of its residuals (for universal kriging)."""
+def residual_model(train, analyte, structure: Structure):
+    """A training-only linear trend in x, y, z and the covariance of its residuals (for universal kriging)."""
     rows = [r for r in train if analyte in r["values"]]
     xyz = np.array([r["xyz"] for r in rows], dtype=float)
     z = np.array([r["values"][analyte] for r in rows], dtype=float)
@@ -112,12 +135,12 @@ def residual_model(train, analyte, spacing, families):
     design = np.c_[np.ones(len(z)), (xyz - centre) / scale]
     coefficients, *_ = np.linalg.lstsq(design, z, rcond=None)
     residuals = z - design @ coefficients
-    fit = fit_variogram([_variogram_on(rows, residuals, spacing)], families, isotropic=True)
+    fit = structure.fit(rows, residuals)
     return fit, {"coefficients": coefficients.tolist(), "centre": centre.tolist(), "scale": scale,
                  "residualVariance": float(residuals.var())}
 
 
-def indicator_models(train, analyte, spacing, weights):
+def indicator_models(train, analyte, structure: Structure, weights):
     """Indicator covariances at training-weighted deciles; a threshold whose fit fails is recorded, not dropped."""
     rows = [r for r in train if analyte in r["values"]]
     z = np.array([r["values"][analyte] for r in rows], dtype=float)
@@ -131,7 +154,7 @@ def indicator_models(train, analyte, spacing, weights):
             records.append({"threshold": t, "status": "failed", "reason": "constant indicator"})
             continue
         try:
-            fit = fit_variogram([_variogram_on(rows, indicator, spacing)], ("spherical",), isotropic=True)
+            fit = structure.fit(rows, indicator, families=("spherical",))
         except ValidationError as error:
             records.append({"threshold": t, "status": "failed", "reason": str(error)})
             continue
@@ -141,33 +164,70 @@ def indicator_models(train, analyte, spacing, weights):
     return kept, records
 
 
-def gaussian_model(train, analyte, spacing, weights, families):
+def gaussian_model(train, validation, analyte, structure: Structure, weights):
+    """The normal-score table and the Gaussian-space covariance selected on validation, with every candidate.
+
+    One structure for every method would not do: forcing ordinary kriging's single exponential on the normal scores
+    of Rocklea's 1 m samples fitted the vertical variogram with no nugget and a 6 m east-west range, which cut the
+    correlation between holes (validation RMSE 0.995 in normal-score units against 0.854 for a nested fit).
+    """
     rows = [r for r in train if analyte in r["values"]]
     z = np.array([r["values"][analyte] for r in rows], dtype=float)
     transform = NormalScoreTransform.fit(z, weights)
-    fit = fit_variogram([_variogram_on(rows, transform.forward(z), spacing)], families, isotropic=True)
-    return transform, fit
+    y = transform.forward(z)
+    probe = Structure({"kind": "anisotropic", "frameAzimuth": 0.0, "families": list(FAMILY_SETS[0])},
+                      structure.spacing, structure.length)
+    used = probe.variograms_of(rows, y)  # the same four horizontal and vertical variograms for every frame
+    bound = RANGE_BOUND_FACTOR * max(float(np.nanmax(v.separation[v.valid])) for v in used if v.valid.any())
+    scored = [{**r, "values": {"y": float(v)}} for r, v in zip(rows, y, strict=True)]
+    held = [r for r in validation if analyte in r["values"]]
+    held_y = transform.forward(np.array([r["values"][analyte] for r in held], dtype=float)) if held else []
+    check = [{**r, "values": {"y": float(v)}} for r, v in zip(held, held_y, strict=True)]
+    out = []
+    for frame in FRAMES:
+        for families in FAMILY_SETS:
+            entry = {"kind": "anisotropic", "frameAzimuth": frame, "families": list(families)}
+            try:
+                fit = fit_variogram(used, families, rotation=principal_frame(frame, 0.0, 0.0))
+            except (ValidationError, np.linalg.LinAlgError) as error:
+                out.append({**entry, "status": "failed", "reason": str(error)})
+                continue
+            predictions = estimate("simple-kriging", scored, check, "y", PLAN, model=fit.model, mean=0.0)["rows"]
+            rmse, coverage = _rmse(check, predictions, "y")
+            out.append({**entry, "status": "fitted", "objective": float(fit.objective),
+                        "converged": bool(fit.converged), "rangeUpperBound": bound,
+                        "rangesAtBound": [[bool(r >= 0.99 * bound) for r in c.ranges] for c in fit.model.components],
+                        "sill": float(fit.model.total_sill[0, 0]), "validationRmse": rmse,
+                        "validationCoverage": coverage, "model": model_record(fit.model)})
+    return transform, select(out), out
 
 
-def lmc_model(record, variables, families):
-    """A jointly fitted isotropic LMC on the omnidirectional direct and cross training variograms."""
+def lmc_model(record, variables, structure: Structure, train):
+    """A jointly fitted LMC on the direct and cross training variograms, with the selected structure."""
     index = {v: i for i, v in enumerate(variables)}
     groups = {}
     for v in variables:
-        omni = next(x for x in record["analytes"][v]["variograms"] if x["name"] == "omni")
-        groups[(index[v], index[v])] = [variogram_from(omni)]
+        by_name = {x["name"]: x for x in record["analytes"][v]["variograms"]}
+        groups[(index[v], index[v])] = [variogram_from(by_name[n]) for n in structure.names]
     for key, records in record["cross"].items():
         a, b = key.split("|")
         if a in index and b in index:
-            omni = next(x for x in records if x["name"] == "omni")
             i, j = sorted((index[a], index[b]))
-            groups[(i, j)] = [variogram_from(omni, cross=True)]
-    return fit_lmc(groups, families, isotropic=True)
+            if structure.rotation is None:
+                chosen = [next(x for x in records if x["name"] == "omni")]
+            else:
+                by_name = {x["name"]: x for x in directional_cross_variograms(train, (a, b), structure.spacing,
+                                                                              structure.length)}
+                chosen = [by_name[n] for n in structure.names]
+            groups[(i, j)] = [variogram_from(x, cross=True) for x in chosen]
+    if structure.rotation is None:
+        return fit_lmc(groups, structure.families, isotropic=True)
+    return fit_lmc(groups, structure.families, rotation=structure.rotation)
 
 
 def train_family(family, project, pre, dataset, features, *, analytes=None):
     primary = analytes or family_analytes(family, pre)
-    out = {"schema": SCHEMA, "family": family, "plan": PLAN.record(), "candidates": {
+    out = {"schema": SCHEMA, "family": family, "engine": engine(), "plan": PLAN.record(), "candidates": {
         "familySets": [list(f) for f in FAMILY_SETS], "frames": list(FRAMES), "minValidationCoverage": MIN_COVERAGE},
         "schemes": []}
     if not dataset["eligible"]:
@@ -193,7 +253,7 @@ def train_family(family, project, pre, dataset, features, *, analytes=None):
                                                        f">= {MIN_COVERAGE:.0%}")
                 entry["populations"].append(result)
                 continue
-            families = tuple(best["families"])
+            structure = Structure(best, spacing, record["supportLength"])
             use = [r for r in train if target in r["values"]]
             xyz = np.array([r["xyz"] for r in use], dtype=float)
             z = np.array([r["values"][target] for r in use], dtype=float)
@@ -203,30 +263,42 @@ def train_family(family, project, pre, dataset, features, *, analytes=None):
                                                                           "objective", "validationRmse",
                                                                           "validationCoverage", "rangeUpperBound",
                                                                           "rangesAtBound")},
-                          model=best["model"], skMean=stats["declustered"]["mean"])
+                          model=best["model"], skMean=stats["declustered"]["mean"], structure=structure.record())
             try:
-                fit, trend = residual_model(train, target, spacing, families[:1])
+                fit, trend = residual_model(train, target, structure)
                 result["universal"] = {"status": "fitted", "model": model_record(fit.model), "trend": trend,
                                        "drift": PLAN.drift}
             except ValidationError as error:
                 result["universal"] = {"status": "failed", "reason": str(error)}
             if len(variables) > 1:
                 try:
-                    lmc = lmc_model(record, variables, families[:1])
+                    lmc = lmc_model(record, variables, structure, train)
                     result["lmc"] = {"status": "fitted", "variables": variables, "model": model_record(lmc.model),
                                      "objective": float(lmc.objective),
                                      "eigenvalues": [np.linalg.eigvalsh(c.sill).tolist() for c in lmc.model.components]}
                 except ValidationError as error:
                     result["lmc"] = {"status": "failed", "variables": variables, "reason": str(error)}
-            _, thresholds = indicator_models(train, target, spacing, weights)
+            _, thresholds = indicator_models(train, target, structure, weights)
             result["indicator"] = {"thresholds": thresholds, "rule": "training-weighted deciles (cell declustering)"}
             try:
-                transform, gfit = gaussian_model(train, target, spacing, weights, families[:1])
-                result["gaussian"] = {"status": "fitted", "transform": transform_record(transform),
-                                      "model": model_record(gfit.model),
-                                      "sill": float(gfit.model.total_sill[0, 0])}
+                transform, gbest, gcandidates = gaussian_model(train, validation, target, structure, weights)
             except ValidationError as error:
                 result["gaussian"] = {"status": "failed", "reason": str(error)}
+            else:
+                if gbest is None:
+                    result["gaussian"] = {"status": "failed", "candidates": gcandidates,
+                                          "reason": "no Gaussian-space candidate fitted with validation coverage "
+                                                    f">= {MIN_COVERAGE:.0%}"}
+                else:
+                    result["gaussian"] = {
+                        "status": "fitted", "transform": transform_record(transform), "model": gbest["model"],
+                        "sill": gbest["sill"], "candidates": gcandidates,
+                        "selected": {k: gbest[k] for k in ("kind", "frameAzimuth", "families", "objective",
+                                                           "validationRmse", "validationCoverage",
+                                                           "rangeUpperBound", "rangesAtBound")},
+                        "rule": "anisotropic candidates in every frame and family set on the normal scores' "
+                                "horizontal and vertical variograms; lowest validation RMSE of simple kriging of "
+                                f"the normal scores among those covering at least {MIN_COVERAGE:.0%}"}
             entry["populations"].append(result)
         out["schemes"].append(entry)
     return {**out, "eligible": True}
