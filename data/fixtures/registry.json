@@ -5,7 +5,9 @@
     "acquire",
     "ingest",
     "import",
-    "preprocess"
+    "preprocess",
+    "dataset",
+    "features"
   ],
   "fixtures": [
     {
@@ -542,7 +544,7 @@
           "status": "undefined"
         }
       },
-      "verification": null
+      "verification": "tests/test_features.py::test_conflicting_orientation_normals_are_undefined"
     },
     {
       "id": "F39",
@@ -565,19 +567,9 @@
       "construction": "Holdout with fragments and repeats",
       "stage": "dataset",
       "expected": "Every held-out derivative and result excluded from training",
-      "files": null,
-      "parameters": {
-        "heldOutHole": "B",
-        "derivatives": [
-          "composites",
-          "fragments",
-          "repeats"
-        ],
-        "expect": {
-          "trainingContainsHeldOut": false
-        }
-      },
-      "verification": null
+      "files": "data/fixtures/F40/",
+      "parameters": null,
+      "verification": "tests/test_dataset.py::test_declared_holdout_takes_every_derivative"
     },
     {
       "id": "F41",

@@ -66,6 +66,20 @@ first sampled depth:
   intervals, the 2,469 full 2 m composites and the 937 full 5 m composites, each on all 158 holes. Residuals and
   gap-touching composites are counted as excluded, not dropped silently.
 
+## Splits and features
+
+| Scheme | Train | Validation | Calibration | Test | Buffer |
+|---|---:|---:|---:|---:|---:|
+| hole-group | 95 | 24 | 16 | 23 | |
+| spatial-margin | 93 | 23 | 16 | 24 | 2 |
+
+The spatial-margin buffer is 146.8 m (1.5 median collar spacings on the roughly 100 m grid); only two holes lie that
+close to a margin hole, since most margin holes are 200 m or more from the rest. On the 1 m population of the
+hole-group split, Fe has 2,997 training samples in 95 holes, a mean of 32.50 wt% and a cell-declustered mean of 31.82
+wt%. Its downhole variogram rises from about 48 at 1 m to about 260 at 12 m, below the training variance of 323, while
+spatial pairs between holes already sit near 210 at the first lag: continuity along a hole is short, and much of the
+variance lies between holes. [The precompute page](../architecture/05_precompute-pipeline.md) shows the variograms.
+
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158

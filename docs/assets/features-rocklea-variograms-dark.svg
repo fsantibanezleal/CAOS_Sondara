@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="458" viewBox="0 0 820 458" role="img" aria-labelledby="t d">
+  <title id="t">Rocklea Fe experimental variograms</title>
+  <desc id="d">Downhole and vertical variograms of Fe rising over the first metres toward the training variance, and omnidirectional and four horizontal directional variograms near that variance from the first spatial lag.</desc>
+  <style>
+    .t { font: 600 15px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #c9d1d9; }
+    .b { font: 13px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #c9d1d9; }
+    .m { font: 12px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #8b949e; }
+  </style>
+  <rect width="820" height="458" fill="#0d1117"/>
+  <text class="t" x="24" y="30">Rocklea Fe, 1 m training samples of the hole-group split: experimental variograms</text>
+  <line x1="70" y1="310.0" x2="370" y2="310.0" stroke="#30363d"/>
+  <text class="m" x="64" y="314.0" text-anchor="end">0</text>
+  <text class="m" x="70.0" y="326" text-anchor="middle">0</text>
+  <line x1="70" y1="250.0" x2="370" y2="250.0" stroke="#30363d"/>
+  <text class="m" x="64" y="254.0" text-anchor="end">100</text>
+  <text class="m" x="145.0" y="326" text-anchor="middle">5</text>
+  <line x1="70" y1="190.0" x2="370" y2="190.0" stroke="#30363d"/>
+  <text class="m" x="64" y="194.0" text-anchor="end">200</text>
+  <text class="m" x="220.0" y="326" text-anchor="middle">10</text>
+  <line x1="70" y1="130.0" x2="370" y2="130.0" stroke="#30363d"/>
+  <text class="m" x="64" y="134.0" text-anchor="end">300</text>
+  <text class="m" x="295.0" y="326" text-anchor="middle">15</text>
+  <line x1="70" y1="70.0" x2="370" y2="70.0" stroke="#30363d"/>
+  <text class="m" x="64" y="74.0" text-anchor="end">400</text>
+  <text class="m" x="370.0" y="326" text-anchor="middle">20</text>
+  <text class="m" x="220.0" y="344" text-anchor="middle">separation along the hole (m)</text>
+  <line x1="70" y1="116.0" x2="370" y2="116.0" stroke="#8b949e" stroke-dasharray="6 4"/>
+  <text class="m" x="366" y="110.0" text-anchor="end">training variance 323</text>
+  <path d="M85.0,281.3 L100.0,255.8 L115.0,233.7 L130.0,218.0 L145.0,204.1 L160.0,192.7 L175.0,181.9 L190.0,173.8 L205.0,166.0 L220.0,161.9 L235.0,158.3 L250.0,155.5 L265.0,153.3 L280.0,152.1 L295.0,153.7 L310.0,156.0 L325.0,158.7 L340.0,161.4 L355.0,165.1 L370.0,167.8" fill="none" stroke="#58a6ff" stroke-width="1.8"/>
+  <circle cx="85.0" cy="281.3" r="3.2" fill="#58a6ff"/>
+  <circle cx="100.0" cy="255.8" r="3.2" fill="#58a6ff"/>
+  <circle cx="115.0" cy="233.7" r="3.2" fill="#58a6ff"/>
+  <circle cx="130.0" cy="218.0" r="3.1" fill="#58a6ff"/>
+  <circle cx="145.0" cy="204.1" r="3.1" fill="#58a6ff"/>
+  <circle cx="160.0" cy="192.7" r="3.1" fill="#58a6ff"/>
+  <circle cx="175.0" cy="181.9" r="3.1" fill="#58a6ff"/>
+  <circle cx="190.0" cy="173.8" r="3.1" fill="#58a6ff"/>
+  <circle cx="205.0" cy="166.0" r="3.0" fill="#58a6ff"/>
+  <circle cx="220.0" cy="161.9" r="3.0" fill="#58a6ff"/>
+  <circle cx="235.0" cy="158.3" r="3.0" fill="#58a6ff"/>
+  <circle cx="250.0" cy="155.5" r="3.0" fill="#58a6ff"/>
+  <circle cx="265.0" cy="153.3" r="2.9" fill="#58a6ff"/>
+  <circle cx="280.0" cy="152.1" r="2.9" fill="#58a6ff"/>
+  <circle cx="295.0" cy="153.7" r="2.9" fill="#58a6ff"/>
+  <circle cx="310.0" cy="156.0" r="2.9" fill="#58a6ff"/>
+  <circle cx="325.0" cy="158.7" r="2.8" fill="#58a6ff"/>
+  <circle cx="340.0" cy="161.4" r="2.8" fill="#58a6ff"/>
+  <circle cx="355.0" cy="165.1" r="2.8" fill="#58a6ff"/>
+  <circle cx="370.0" cy="167.8" r="2.8" fill="#58a6ff"/>
+  <path d="M85.0,282.0 L100.0,258.1 L115.0,229.7 L130.0,218.7 L145.0,206.7 L160.0,194.1 L175.0,183.7 L190.0,174.6 L205.0,168.6 L220.0,160.9 L235.0,152.6 L250.0,154.7 L265.0,158.8 L280.0,148.4 L295.0,158.9 L310.0,157.4 L325.0,165.0 L340.0,162.0 L355.0,162.4 L370.0,170.7" fill="none" stroke="#f0883e" stroke-width="1.8"/>
+  <circle cx="85.0" cy="282.0" r="2.8" fill="#f0883e"/>
+  <circle cx="100.0" cy="258.1" r="2.8" fill="#f0883e"/>
+  <circle cx="115.0" cy="229.7" r="2.8" fill="#f0883e"/>
+  <circle cx="130.0" cy="218.7" r="2.8" fill="#f0883e"/>
+  <circle cx="145.0" cy="206.7" r="2.8" fill="#f0883e"/>
+  <circle cx="160.0" cy="194.1" r="2.7" fill="#f0883e"/>
+  <circle cx="175.0" cy="183.7" r="2.7" fill="#f0883e"/>
+  <circle cx="190.0" cy="174.6" r="2.7" fill="#f0883e"/>
+  <circle cx="205.0" cy="168.6" r="2.7" fill="#f0883e"/>
+  <circle cx="220.0" cy="160.9" r="2.7" fill="#f0883e"/>
+  <circle cx="235.0" cy="152.6" r="2.7" fill="#f0883e"/>
+  <circle cx="250.0" cy="154.7" r="2.6" fill="#f0883e"/>
+  <circle cx="265.0" cy="158.8" r="2.6" fill="#f0883e"/>
+  <circle cx="280.0" cy="148.4" r="2.6" fill="#f0883e"/>
+  <circle cx="295.0" cy="158.9" r="2.6" fill="#f0883e"/>
+  <circle cx="310.0" cy="157.4" r="2.6" fill="#f0883e"/>
+  <circle cx="325.0" cy="165.0" r="2.6" fill="#f0883e"/>
+  <circle cx="340.0" cy="162.0" r="2.5" fill="#f0883e"/>
+  <circle cx="355.0" cy="162.4" r="2.5" fill="#f0883e"/>
+  <circle cx="370.0" cy="170.7" r="2.5" fill="#f0883e"/>
+  <line x1="460" y1="310.0" x2="760" y2="310.0" stroke="#30363d"/>
+  <text class="m" x="454" y="314.0" text-anchor="end">0</text>
+  <text class="m" x="460.0" y="326" text-anchor="middle">0</text>
+  <line x1="460" y1="250.0" x2="760" y2="250.0" stroke="#30363d"/>
+  <text class="m" x="454" y="254.0" text-anchor="end">100</text>
+  <text class="m" x="535.0" y="326" text-anchor="middle">150</text>
+  <line x1="460" y1="190.0" x2="760" y2="190.0" stroke="#30363d"/>
+  <text class="m" x="454" y="194.0" text-anchor="end">200</text>
+  <text class="m" x="610.0" y="326" text-anchor="middle">300</text>
+  <line x1="460" y1="130.0" x2="760" y2="130.0" stroke="#30363d"/>
+  <text class="m" x="454" y="134.0" text-anchor="end">300</text>
+  <text class="m" x="685.0" y="326" text-anchor="middle">450</text>
+  <line x1="460" y1="70.0" x2="760" y2="70.0" stroke="#30363d"/>
+  <text class="m" x="454" y="74.0" text-anchor="end">400</text>
+  <text class="m" x="760.0" y="326" text-anchor="middle">600</text>
+  <text class="m" x="610.0" y="344" text-anchor="middle">separation in space (m)</text>
+  <line x1="460" y1="116.0" x2="760" y2="116.0" stroke="#8b949e" stroke-dasharray="6 4"/>
+  <text class="m" x="756" y="110.0" text-anchor="end">training variance 323</text>
+  <path d="M482.9,178.8 L510.1,184.8 L535.2,181.8 L562.3,189.0 L582.6,191.8 L608.7,185.9 L634.6,178.4 L661.2,181.6 L683.0,167.1 L707.9,166.0 L733.6,161.9 L758.9,155.9" fill="none" stroke="#c9d1d9" stroke-width="1.8"/>
+  <circle cx="482.9" cy="178.8" r="4.3" fill="#c9d1d9"/>
+  <circle cx="510.1" cy="184.8" r="5.3" fill="#c9d1d9"/>
+  <circle cx="535.2" cy="181.8" r="4.1" fill="#c9d1d9"/>
+  <circle cx="562.3" cy="189.0" r="6.0" fill="#c9d1d9"/>
+  <circle cx="582.6" cy="191.8" r="6.0" fill="#c9d1d9"/>
+  <circle cx="608.7" cy="185.9" r="6.0" fill="#c9d1d9"/>
+  <circle cx="634.6" cy="178.4" r="5.4" fill="#c9d1d9"/>
+  <circle cx="661.2" cy="181.6" r="6.0" fill="#c9d1d9"/>
+  <circle cx="683.0" cy="167.1" r="6.0" fill="#c9d1d9"/>
+  <circle cx="707.9" cy="166.0" r="6.0" fill="#c9d1d9"/>
+  <circle cx="733.6" cy="161.9" r="5.4" fill="#c9d1d9"/>
+  <circle cx="758.9" cy="155.9" r="6.0" fill="#c9d1d9"/>
+  <path d="M509.0,135.9 L561.8,194.9 L573.7,226.3 L663.8,185.9 L675.6,161.6 L709.6,265.4 L721.1,209.9 L760.0,166.4" fill="none" stroke="#3fb950" stroke-width="1.8"/>
+  <circle cx="509.0" cy="135.9" r="2.6" fill="#3fb950"/>
+  <circle cx="561.8" cy="194.9" r="5.1" fill="#3fb950"/>
+  <circle cx="573.7" cy="226.3" r="3.4" fill="#3fb950"/>
+  <circle cx="663.8" cy="185.9" r="5.2" fill="#3fb950"/>
+  <circle cx="675.6" cy="161.6" r="3.9" fill="#3fb950"/>
+  <circle cx="709.6" cy="265.4" r="2.2" fill="#3fb950"/>
+  <circle cx="721.1" cy="209.9" r="2.3" fill="#3fb950"/>
+  <circle cx="760.0" cy="166.4" r="5.4" fill="#3fb950"/>
+  <path d="M568.9,186.1 L582.7,186.6 L605.7,183.3 L633.7,174.4 L660.5,196.1 L685.6,153.8 L706.3,162.0 L735.1,196.8 L757.2,139.8" fill="none" stroke="#bc8cff" stroke-width="1.8"/>
+  <circle cx="568.9" cy="186.1" r="3.6" fill="#bc8cff"/>
+  <circle cx="582.7" cy="186.6" r="4.2" fill="#bc8cff"/>
+  <circle cx="605.7" cy="183.3" r="4.1" fill="#bc8cff"/>
+  <circle cx="633.7" cy="174.4" r="4.1" fill="#bc8cff"/>
+  <circle cx="660.5" cy="196.1" r="3.4" fill="#bc8cff"/>
+  <circle cx="685.6" cy="153.8" r="4.1" fill="#bc8cff"/>
+  <circle cx="706.3" cy="162.0" r="4.5" fill="#bc8cff"/>
+  <circle cx="735.1" cy="196.8" r="3.2" fill="#bc8cff"/>
+  <circle cx="757.2" cy="139.8" r="3.7" fill="#bc8cff"/>
+  <path d="M485.8,210.2 L510.2,186.2 L535.5,183.9 L560.5,181.3 L586.4,179.0 L610.3,177.1 L637.2,169.4 L659.6,162.5 L687.2,162.1 L709.5,164.8 L732.1,166.1 L758.6,152.5" fill="none" stroke="#f85149" stroke-width="1.8"/>
+  <circle cx="485.8" cy="210.2" r="3.6" fill="#f85149"/>
+  <circle cx="510.2" cy="186.2" r="5.3" fill="#f85149"/>
+  <circle cx="535.5" cy="183.9" r="4.1" fill="#f85149"/>
+  <circle cx="560.5" cy="181.3" r="5.1" fill="#f85149"/>
+  <circle cx="586.4" cy="179.0" r="3.9" fill="#f85149"/>
+  <circle cx="610.3" cy="177.1" r="4.8" fill="#f85149"/>
+  <circle cx="637.2" cy="169.4" r="3.8" fill="#f85149"/>
+  <circle cx="659.6" cy="162.5" r="4.7" fill="#f85149"/>
+  <circle cx="687.2" cy="162.1" r="3.8" fill="#f85149"/>
+  <circle cx="709.5" cy="164.8" r="4.7" fill="#f85149"/>
+  <circle cx="732.1" cy="166.1" r="4.0" fill="#f85149"/>
+  <circle cx="758.6" cy="152.5" r="4.7" fill="#f85149"/>
+  <path d="M526.7,112.9 L565.8,204.5 L583.6,189.9 L608.7,202.5 L633.3,191.1 L657.9,200.4 L683.5,182.6 L707.6,171.9 L736.0,151.3 L758.0,138.1" fill="none" stroke="#39c5cf" stroke-width="1.8"/>
+  <circle cx="526.7" cy="112.9" r="2.4" fill="#39c5cf"/>
+  <circle cx="565.8" cy="204.5" r="3.3" fill="#39c5cf"/>
+  <circle cx="583.6" cy="189.9" r="4.3" fill="#39c5cf"/>
+  <circle cx="608.7" cy="202.5" r="4.2" fill="#39c5cf"/>
+  <circle cx="633.3" cy="191.1" r="3.9" fill="#39c5cf"/>
+  <circle cx="657.9" cy="200.4" r="4.0" fill="#39c5cf"/>
+  <circle cx="683.5" cy="182.6" r="4.4" fill="#39c5cf"/>
+  <circle cx="707.6" cy="171.9" r="4.6" fill="#39c5cf"/>
+  <circle cx="736.0" cy="151.3" r="3.8" fill="#39c5cf"/>
+  <circle cx="758.0" cy="138.1" r="3.3" fill="#39c5cf"/>
+  <text class="m" x="70" y="58">semivariance ((wt%)^2)</text>
+  <rect x="70" y="363" width="12" height="3" fill="#58a6ff"/>
+  <text class="m" x="88" y="368">downhole</text>
+  <rect x="190" y="363" width="12" height="3" fill="#f0883e"/>
+  <text class="m" x="208" y="368">vertical</text>
+  <rect x="70" y="383" width="12" height="3" fill="#c9d1d9"/>
+  <text class="m" x="88" y="388">omni</text>
+  <rect x="190" y="383" width="12" height="3" fill="#3fb950"/>
+  <text class="m" x="208" y="388">azimuth-000</text>
+  <rect x="310" y="383" width="12" height="3" fill="#bc8cff"/>
+  <text class="m" x="328" y="388">azimuth-045</text>
+  <rect x="430" y="383" width="12" height="3" fill="#f85149"/>
+  <text class="m" x="448" y="388">azimuth-090</text>
+  <rect x="550" y="383" width="12" height="3" fill="#39c5cf"/>
+  <text class="m" x="568" y="388">azimuth-135</text>
+  <text class="m" x="24" y="420">2,997 samples in 95 training holes; declustered mean 31.82 against 32.50. Dot size grows with the pair count;</text>
+  <text class="m" x="24" y="438">empty bins are gaps, not zeros. Directional bins follow the roughly 100 m drilling grid, so several lags hold no pairs.</text>
+</svg>

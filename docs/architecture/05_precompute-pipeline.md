@@ -11,8 +11,8 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 1 | `acquire` | Fetches the allowlisted sources of `data/sources/manifest.json` over HTTPS with byte bounds and SHA-256 checks, or copies a bundled licensed subset; writes an acquisition receipt | 0.03.000 |
 | 2 | `ingest` | Builds each family's canonical project: source namespaces, collars, surveys, trajectories, analytes, supports, determinations, geology, the QA issue table and the reconciliation waterfall, every row carrying its raw source row identity; with `--manifest`, imports user files as a transaction ([guide](../guides/02_bring-your-own-data.md)) | 0.03.000 (Rocklea, Alberta, NTGS); 0.06.000 (user imports) |
 | 3 | `preprocess` | Exact desurvey, support positions, compositing, the log overlay and the modeling populations, through GeoCond | 0.04.000 (Rocklea, Alberta, NTGS) |
-| 4 | `dataset` | Frozen hole-group and spatial-block train, validation, calibration and test assignments; every derivative stays with its parent | planned |
-| 5 | `features` | Support-aware coordinates, train-only transforms, declared covariates, variogram pair plans and training-image conditioning maps | planned |
+| 4 | `dataset` | Frozen hole-group, spatial-margin and declared train, validation, calibration and test assignments; every derivative stays with its hole | 0.07.000 |
+| 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
 | 6 | `train` | Covariance, LMC and indicator fitting, normal-score preparation, DeepKriging, KCN and autoencoder training, model selection and train-only calibration | planned |
 | 7 | `infer` | Every continuous estimator on the identical targets; SNESIM and Direct Sampling realizations; CPU and GPU method identity kept | planned |
 | 8 | `evaluate` | Native-unit bias, MAE and RMSE, support coverage, class probability scores, hard-data honor and structural metrics | planned |
@@ -76,6 +76,32 @@ this stage decides what goes into them.
 `scripts/check_artifacts.py` validates the preprocessed output against its project (input hash, trajectories,
 positions, composite statuses, means only where covered, per-hole conservation, population members, overlay
 coverage), and `scripts/figures/preprocess_figures.py` draws the figures of these pages from the outputs.
+
+## Splits and features (stages 4 and 5)
+
+`dataset.json` (`drillhole.dataset/v1`) freezes, per family, the hole assignment of each scheme and records the
+membership counts and hashes of every derived table (samples, composites, fragments, repeats, populations):
+
+| Scheme | Rule |
+|---|---|
+| `hole-group` | holes sorted by ID, permuted with the recorded seed (PCG64), cut 60/15/10/15 into train, validation, calibration and test by largest remainder |
+| `spatial-margin` | the outermost 15 % of holes by collar distance from the centroid are test; holes within 1.5 median nearest-neighbour collar distances of a test hole are in no split; the rest cut 60/15/10 |
+| `declared` | the holes a manifest names (`holdout`) are test; the rest cut 60/15/10 |
+
+A family with fewer holes than splits has no split and says so (NTGS). `features.json` (`drillhole.features/v1`) holds,
+per scheme, population and analyte, the statistics and variograms of the training members only:
+
+| Part | Content |
+|---|---|
+| `statistics` | count, holes, mean, variance, extremes, and the cell-declustered mean with its cell (the median collar spacing of the training holes horizontally, the support length vertically) and four diagonal origin offsets |
+| `variograms` | downhole (pairs within one hole, lag = support length), omnidirectional, four horizontal directions (22.5 degree tolerance, bandwidth twice the collar spacing) and vertical, each with edges, mean separations, pair counts, semivariances, the pair population and the sampling seed |
+| `cross` | downhole and omnidirectional cross variograms on co-located values of the declared variable sets |
+| `orientation` | when a manifest declares orientations: the principal plane of their normals, or `undefined` when the two largest eigenvalues of the orientation tensor are within a ratio of 1.2 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/features-rocklea-variograms-dark.svg">
+  <img alt="Downhole and vertical variograms of Fe rising over the first metres toward the training variance, and omnidirectional and four horizontal directional variograms near that variance from the first spatial lag." src="../assets/features-rocklea-variograms-light.svg" width="820">
+</picture>
 
 ## Determinism
 
