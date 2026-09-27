@@ -20,4 +20,8 @@
 
 ## Convergence
 
-Recorded at each release against every requirement above, with the gate's result.
+- **0.05.000:** R-401 to R-405, each gate passing (tests/test_contract.py, tests/test_ingest.py).
+- **0.06.000:** R-419 to R-445 and R-460 to R-462, each gate passing (tests/test_import.py,
+  tests/test_fixtures.py); 52 tests in the suite; `scripts/check_sdd.py` confirms every named gate exists.
+- **Not yet met:** fixtures F31 to F40 and F42 are verified by the infer, features, dataset and export stages
+  (units SD-5 to SD-8); the registry test fails when one of those stages is built without them.

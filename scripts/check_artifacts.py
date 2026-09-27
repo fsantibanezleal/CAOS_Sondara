@@ -176,8 +176,21 @@ def check_preprocessed(pre: dict, project: dict) -> list[str]:
                 errors.append(f"support {sid}: point without a finite position")
         elif not all(_finite_xyz(p.get(k)) for k in ("from", "mid", "to")):
             errors.append(f"support {sid}: interval without finite start, mid and end positions")
+    determinations = {d["id"]: d for d in project["determinations"]}
+    excluded = {x["rowId"] for x in project["exclusions"] if x["table"] == "determinations"}
+    source: dict = {}
+    for r in pre.get("selections", {}).get("rows", []):
+        d = determinations.get(r["determinationId"])
+        if d is None or d["state"] != "measured" or d["sampleRole"] != "original" or d["id"] in excluded:
+            errors.append(f"selection of {r['determinationId']}: not a measured, original, non-excluded result")
+            continue
+        if r["representative"] not in supports:
+            errors.append(f"selection of {r['determinationId']}: representative is not a project support")
+        hole, a, b = r["geometry"]
+        source[(hole, r["analyteId"])] = source.get((hole, r["analyteId"]), 0.0) + r["value"] * (b - a)
     composite_ids = set()
     if "composites" in pre:
+        minimum = pre["composites"]["minCoverage"]
         numerators: dict = {}
         for row in pre["composites"]["rows"]:
             composite_ids.add(row["id"])
@@ -185,28 +198,27 @@ def check_preprocessed(pre: dict, project: dict) -> list[str]:
                 errors.append(f"composite {row['id']}: status {row['status']!r}")
                 continue
             length = row["toMd"] - row["fromMd"]
-            if row["status"] == "full" and (abs(length - row["length"]) > 1e-9 or abs(row["coverage"] - 1) > 1e-12):
-                errors.append(f"composite {row['id']}: a full composite has the declared length and coverage 1")
-            if row["status"] == "residual" and not (length < row["length"] and abs(row["coverage"] - 1) <= 1e-12):
-                errors.append(f"composite {row['id']}: a residual is shorter with coverage 1")
-            has_values = all(v is not None and _finite(v) for v in row["values"].values())
-            if (row["status"] == "insufficient-coverage") == has_values:
-                errors.append(f"composite {row['id']}: only covered composites carry means")
+            if row["status"] == "full" and (abs(length - row["length"]) > 1e-9 or row["coverage"] < minimum - 1e-12):
+                errors.append(f"composite {row['id']}: a full composite has the declared length and enough coverage")
+            if row["status"] == "residual" and not (length < row["length"] and row["coverage"] >= minimum - 1e-12):
+                errors.append(f"composite {row['id']}: a residual is shorter with enough coverage")
+            for analyte, value in row["values"].items():
+                share = row["coverageByAnalyte"][analyte]
+                covered = share > 0 and share >= minimum - 1e-12  # GeoCond: some valid length and enough coverage
+                if (value is not None and _finite(value)) != covered:
+                    errors.append(f"composite {row['id']}: {analyte} carries a mean only where it is covered")
             if any(pid not in supports for pid, _ in row["parents"]):
                 errors.append(f"composite {row['id']}: parent is not a project support")
             for analyte, value in row["numerators"].items():
                 key = (row["holeId"], row["length"], analyte)
                 numerators[key] = numerators.get(key, 0.0) + value
-        source: dict = {}
-        for d in project["determinations"]:
-            s = supports[d["supportId"]]
-            if s["kind"] == "interval" and d["qualifier"] == "=":
-                key = (s["holeId"], d["analyteId"])
-                source[key] = source.get(key, 0.0) + d["value"] * (s["toMd"] - s["fromMd"])
         for (hole, _length, analyte), total in numerators.items():
             expected = source.get((hole, analyte), 0.0)
             if abs(total - expected) > 1e-9 * max(1.0, abs(expected)):
                 errors.append(f"composites of {hole} do not conserve the {analyte} grade-length integral")
+    fragments = pre.get("fragments")
+    if fragments is not None and fragments["parentLengthMaxError"] > 1e-9:
+        errors.append("overlay fragments do not add up to their parent intervals")
     known = set(supports) | composite_ids
     for population in pre.get("populations", []):
         if population.get("count") != len(population.get("members", [])):

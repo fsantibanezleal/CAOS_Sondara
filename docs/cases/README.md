@@ -9,7 +9,7 @@ into every result, and what the family can and cannot answer.
 | Rocklea Dome, CSIRO | [rocklea.md](rocklea.md) | R01 to R12 | 5,035 one-metre multielement intervals in 158 holes, assumed vertical |
 | Alberta MAR_19860002, AGS | [alberta.md](alberta.md) | A01 to A08 | 22 inclined holes, 150 geology records, 176 Cu/Zn sampling envelopes |
 | NTGS 12LE002 | [ntgs.md](ntgs.md) | measured-survey and QA scenarios | one hole, 11 measured stations, 1,892 determinations |
-| Authored fixtures | (unit SD-4) | S01 to S12, fixtures F01 to F42 | none: analytic and adversarial inputs, labelled as authored |
+| Authored fixtures | [fixtures.md](fixtures.md) | S01 to S12, fixtures F01 to F42 | none: analytic and adversarial inputs, labelled as authored |
 
 Run `python data-pipeline/run.py ingest --cache <raw sources>` and then `preprocess`; each family writes its canonical
 project, issue table and reconciliation waterfall, then its desurveyed positions, composites, log overlay and

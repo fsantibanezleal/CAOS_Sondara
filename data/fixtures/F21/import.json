@@ -1,0 +1,68 @@
+{
+  "schema": "drillhole.import/v1",
+  "project": {
+    "id": "f21",
+    "name": "Fixture f21"
+  },
+  "frame": {
+    "id": "site",
+    "kind": "projected-metric",
+    "horizontalCrs": "EPSG:32719"
+  },
+  "namespace": "s",
+  "files": [
+    {
+      "path": "collars.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      }
+    },
+    {
+      "path": "multielement.csv",
+      "role": "assay",
+      "columns": {
+        "hole": "HoleID",
+        "sample": "SampleID",
+        "from": "From",
+        "to": "To"
+      },
+      "analytes": {
+        "Cu_ppm": {
+          "analyte": "Cu",
+          "unit": "ppm",
+          "method": "ICP",
+          "lab": "L1"
+        }
+      }
+    },
+    {
+      "path": "gold.csv",
+      "role": "assay",
+      "columns": {
+        "hole": "HoleID",
+        "sample": "SampleID",
+        "from": "From",
+        "to": "To"
+      },
+      "analytes": {
+        "Au_gpt": {
+          "analyte": "Au",
+          "unit": "g/t",
+          "method": "FA",
+          "lab": "L1"
+        }
+      }
+    }
+  ]
+}

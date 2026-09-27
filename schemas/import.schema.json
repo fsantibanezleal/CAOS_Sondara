@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sondara.ml.fasl-work.com/schemas/import.schema.json",
+  "title": "Drillhole import manifest v1",
+  "description": "How to read a set of user files into the canonical project: each file's role, dialect, encoding, missing tokens, units, column map and angle convention, plus identity aliases, resolutions, exclusions and declared assumptions. The importer validates a manifest against this schema before opening any file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project", "frame", "files"],
+  "$defs": {
+    "hole": {"type": "string", "pattern": "^[^:]+:.+$"},
+    "dialect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "quote": {"type": "string", "minLength": 1, "maxLength": 1},
+        "decimal": {"enum": [".", ","]},
+        "encoding": {"enum": ["utf-8", "utf-8-sig", "cp1252", "latin-1"]}
+      }
+    },
+    "columns": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role", "columns"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "role": {"enum": ["collar", "survey", "assay", "lithology"]},
+        "namespace": {"type": "string", "pattern": "^[^:]+$"},
+        "dialect": {"$ref": "#/$defs/dialect"},
+        "missing": {"type": "array", "items": {"type": "string"}},
+        "lengthUnit": {"enum": ["m", "ft"]},
+        "elevationUnit": {"enum": ["m", "ft"]},
+        "crs": {"type": "string"},
+        "axisOrder": {"enum": ["east-north", "north-east"]},
+        "columns": {"$ref": "#/$defs/columns"},
+        "angles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dip": {"enum": ["negative-down", "positive-down", "inclination-from-vertical"]},
+            "azimuthReference": {"enum": ["true", "grid", "magnetic", "unknown"]},
+            "instrument": {"type": "string"}
+          }
+        },
+        "analytes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["analyte", "unit"],
+            "properties": {
+              "analyte": {"type": "string", "minLength": 1},
+              "unit": {"enum": ["ppb", "ppm", "g/t", "%", "wt%"]},
+              "method": {"type": "string"},
+              "lab": {"type": "string"}
+            }
+          }
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": {"enum": ["missing", "not-sampled", "lost-core", "sentinel"]}
+        },
+        "controls": {"type": "object", "additionalProperties": {"type": "string"}},
+        "repeats": {"type": "object", "additionalProperties": {"enum": ["repeat", "duplicate"]}},
+        "codes": {"type": "array", "items": {"type": "string"}},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"const": "drillhole.import/v1"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {"id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}, "name": {"type": "string"}}
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"enum": ["projected-metric", "local-metric"]},
+        "horizontalCrs": {"type": "string"},
+        "verticalDatum": {"type": "string"}
+      }
+    },
+    "namespace": {"type": "string", "pattern": "^[^:]+$"},
+    "files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/file"}},
+    "aliases": {"type": "object", "additionalProperties": {"$ref": "#/$defs/hole"}},
+    "resolutions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"collars": {"type": "object", "additionalProperties": {"type": "string"}}}
+    },
+    "exclude": {"type": "array", "items": {"$ref": "#/$defs/hole"}},
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "missingSurvey": {"enum": ["collar-orientation", "vertical"]},
+        "surveyStart": {"const": "tangent"}
+      }
+    },
+    "methodPriority": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "compositing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lengths": {"type": "array", "minItems": 1, "items": {"type": "number", "exclusiveMinimum": 0}},
+        "minCoverage": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}

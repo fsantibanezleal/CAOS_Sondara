@@ -1,0 +1,53 @@
+{
+  "schema": "drillhole.import/v1",
+  "project": {
+    "id": "f12",
+    "name": "Fixture f12"
+  },
+  "frame": {
+    "id": "site",
+    "kind": "projected-metric",
+    "horizontalCrs": "EPSG:32719"
+  },
+  "namespace": "s",
+  "files": [
+    {
+      "path": "collars_a.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      }
+    },
+    {
+      "path": "collars_swapped.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      },
+      "axisOrder": "north-east"
+    }
+  ],
+  "assumptions": {
+    "missingSurvey": "collar-orientation"
+  }
+}

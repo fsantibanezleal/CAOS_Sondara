@@ -1,0 +1,5 @@
+HoleID,SampleID,From,To,Type,Cu_ppm
+DH1,S1,0.0,2.0,,110
+,STD-OREAS-45,,,STD,780
+,BLK-1,,,BLK,<2
+DH1,S2,2.0,4.0,,120
