@@ -29,6 +29,18 @@ FAMILY_ANALYTES = {"rocklea": ["Fe", "SiO2", "Al2O3"], "alberta": ["Cu_ppm", "Zn
 CROSS_SETS = {"rocklea": [("Fe", "SiO2"), ("Fe", "Al2O3"), ("SiO2", "Al2O3")], "alberta": [("Cu_ppm", "Zn_ppm")]}
 
 
+def family_analytes(family, pre) -> list[str]:
+    """The field families' declared analytes, or every selected analyte of a user import (sorted)."""
+    return FAMILY_ANALYTES.get(family) or sorted({r["analyteId"] for r in pre["selections"]["rows"]})
+
+
+def cross_sets(family, analytes) -> list[tuple[str, str]]:
+    """The field families' declared variable sets, or the first analyte of a user import with each of the others."""
+    if family in CROSS_SETS:
+        return CROSS_SETS[family]
+    return [(analytes[0], other) for other in analytes[1:]]
+
+
 def population_rows(pre: dict, member_ids) -> list[dict]:
     """One row per member: id, hole, centre, centre depth, support length and its selected values by analyte.
 
@@ -180,9 +192,8 @@ def orientation_from_normals(measurements, ratio: float = ORIENTATION_RATIO) -> 
 def family_features(family, project, pre, dataset, *, analytes=None, cross=None, orientations=None, seed=SEED):
     from stages.dataset import members
 
-    analytes = analytes if analytes is not None else FAMILY_ANALYTES.get(
-        family, sorted({r["analyteId"] for r in pre["selections"]["rows"]}))
-    cross = cross if cross is not None else CROSS_SETS.get(family, [])
+    analytes = analytes if analytes is not None else family_analytes(family, pre)
+    cross = cross if cross is not None else cross_sets(family, analytes)
     xy = collar_xy(project)
     out = {"schema": SCHEMA, "family": family, "inputDatasetSha256": dataset.get("sha256"),
            "maxPairs": MAX_PAIRS, "seed": seed, "schemes": []}
