@@ -9,7 +9,7 @@ by path.
 
 ## Current release
 
-Version 0.06.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
+Version 0.07.000. The build follows ten units (SD-1 to SD-10); the first five stages of the offline pipeline are
 complete, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
 [`schemas/project.schema.json`](schemas/project.schema.json):
 
@@ -17,7 +17,9 @@ complete, your own files import through a manifest ([guide](docs/guides/02_bring
 |---|---|---|
 | `acquire` | fetches the pinned sources by URL, byte count and SHA-256, with license and attribution | all three |
 | `ingest` | builds the canonical project, its QA issues and its reconciliation waterfall | all three |
-| `preprocess` | desurveys every hole, positions every support, composites, overlays logs on sampling envelopes and names the modeling populations | all three |
+| `preprocess` | desurveys every hole, positions every support, selects results, composites, overlays logs and names the modeling populations | all three |
+| `dataset` | freezes hole-group, spatial-margin and declared splits; every derivative follows its hole | Rocklea, Alberta (NTGS has one hole) |
+| `features` | training-only statistics, declustering and experimental variograms | Rocklea, Alberta |
 
 The three field families are [Rocklea Dome](docs/cases/rocklea.md) (CSIRO, 5,035 one-metre multielement intervals in
 158 holes), [Alberta MAR_19860002](docs/cases/alberta.md) (22 inclined holes with logged geology and 176 sampling
@@ -37,6 +39,8 @@ export SONDARA_RAW=/path/outside/the/repo
 .venv-pipeline/Scripts/python data-pipeline/run.py acquire
 .venv-pipeline/Scripts/python data-pipeline/run.py ingest
 .venv-pipeline/Scripts/python data-pipeline/run.py preprocess
+.venv-pipeline/Scripts/python data-pipeline/run.py dataset
+.venv-pipeline/Scripts/python data-pipeline/run.py features
 .venv-pipeline/Scripts/python scripts/check_artifacts.py
 ```
 

@@ -54,6 +54,10 @@ record repeats.
 The QA population holds all 59 samples, with repeats in one split group. The estimation population is empty by
 rule: one hole cannot form grouped training and test sets.
 
+## Splits
+
+The dataset stage records NTGS as not eligible: one hole cannot fill train, validation, calibration and test.
+
 ## What it can and cannot answer
 
 This hole supplies the measured-desurvey, interval-log, censoring and repeat scenarios. One hole cannot support grouped

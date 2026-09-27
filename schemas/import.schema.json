@@ -105,6 +105,20 @@
       }
     },
     "methodPriority": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+    "holdout": {"type": "array", "items": {"$ref": "#/$defs/hole"}},
+    "orientations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["dip", "dipDirection"],
+        "properties": {
+          "dip": {"type": "number", "minimum": 0, "maximum": 90},
+          "dipDirection": {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+          "note": {"type": "string"}
+        }
+      }
+    },
     "compositing": {
       "type": "object",
       "additionalProperties": false,

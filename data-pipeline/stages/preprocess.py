@@ -152,7 +152,7 @@ def convert(value: float, unit: str, target: str) -> float:
 
 
 def select_results(project: dict, method_priority: dict | None = None) -> dict:
-    """One value per distinct interval geometry and analyte, chosen by a declared rule, or unresolved with a reason.
+    """One value per distinct sample geometry and analyte, chosen by a declared rule, or unresolved with a reason.
 
     Candidates are the results of every original sample on one geometry, minus excluded results. A single measured
     result is selected (named a re-assay when an above-range result shares the geometry); several measured results
@@ -161,17 +161,24 @@ def select_results(project: dict, method_priority: dict | None = None) -> dict:
     """
     priority = method_priority or {}
     excluded = {x["rowId"] for x in project["exclusions"] if x["table"] == "determinations"}
-    intervals = {s["id"]: s for s in project["supports"] if s["kind"] == "interval"}
+    located = {s["id"]: s for s in project["supports"] if s["kind"] != "unknown"}
     units = {a["id"]: a["unit"] for a in project["analytes"]}
-    representatives = {}
-    for s in intervals.values():
-        g = (s["holeId"], s["fromMd"], s["toMd"])
+
+    def geometry(s):
+        if s["kind"] == "point":
+            return s["holeId"], s["atMd"], s["atMd"]
+        return s["holeId"], s["fromMd"], s["toMd"]
+
+    representatives, kinds = {}, {}
+    for s in located.values():
+        g = geometry(s)
         representatives[g] = min(representatives.get(g, s["id"]), s["id"])
+        kinds[g] = s["kind"]
     groups = defaultdict(list)
     for d in project["determinations"]:
-        s = intervals.get(d["supportId"])
+        s = located.get(d["supportId"])
         if s is not None and d["id"] not in excluded:
-            groups[((s["holeId"], s["fromMd"], s["toMd"]), d["analyteId"])].append(d)
+            groups[(geometry(s), d["analyteId"])].append(d)
     rows, unresolved = [], []
     for (g, analyte), ds in sorted(groups.items()):
         originals = [d for d in ds if d["sampleRole"] == "original"]
@@ -192,10 +199,11 @@ def select_results(project: dict, method_priority: dict | None = None) -> dict:
             states = sorted({d["state"] for d in originals})
             reason = f"no measured original result ({', '.join(states) or 'repeats only'})"
         if chosen is None:
-            unresolved.append({"geometry": list(g), "analyteId": analyte, "reason": reason,
+            unresolved.append({"geometry": list(g), "kind": kinds[g], "analyteId": analyte, "reason": reason,
                                "determinationIds": sorted(d["id"] for d in ds)})
         else:
-            rows.append({"geometry": list(g), "representative": representatives[g], "analyteId": analyte,
+            rows.append({"geometry": list(g), "kind": kinds[g], "representative": representatives[g],
+                         "analyteId": analyte,
                          "determinationId": chosen["id"], "value": convert(chosen["value"], chosen["unit"],
                                                                            units[analyte]),
                          "unit": units[analyte], "rule": rule})
@@ -227,6 +235,8 @@ def composite_family(project: dict, surveys: dict[str, Survey], analytes: list[s
     values = defaultdict(dict)
     representative = {}
     for r in selection["rows"]:
+        if r["kind"] != "interval":
+            continue  # only known continuous intervals composite
         g = tuple(r["geometry"])
         values[g][r["analyteId"]] = r["value"]
         representative[g] = r["representative"]
@@ -508,7 +518,7 @@ def ntgs(project, surveys, selection, options):
 
 def imported(project, surveys, selection, options):
     """A user import: composites per analyte, overlay fragments, gaps, repeats and per-analyte populations."""
-    analytes = sorted({r["analyteId"] for r in selection["rows"]})
+    analytes = sorted({r["analyteId"] for r in selection["rows"] if r["kind"] == "interval"})
     composites = (composite_family(project, surveys, analytes, selection, lengths=options["lengths"],
                                    min_coverage=options["minCoverage"]) if analytes else None)
     repeats, geometries = _repeats(project)

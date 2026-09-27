@@ -4,6 +4,20 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.07.000], 2026-09-26
+
+### Added
+- The `dataset` stage (unit SD-5, first release): frozen hole-group (seeded, 60/15/10/15 by largest remainder),
+  spatial-margin (outermost 15 %, buffer of 1.5 median collar spacings) and declared holdout splits; every sample,
+  repeat, composite, fragment and population member follows its hole; memberships recorded by count and hash; one-hole
+  families recorded as not eligible. Rocklea 95/24/16/23 and 93/23/16/24 with 2 buffer holes; Alberta 13/4/2/3 and
+  14/3/2/3.
+- The `features` stage: training-only statistics, cell declustering, GeoCond downhole, directional and cross
+  experimental variograms, and the principal plane of declared orientations (or `undefined` when they conflict).
+- Fixture F40 authored with a declared holdout, and F38 and F40 verified; the SD-5 feature design; requirements
+  R-501 to R-510 with their tests; dataset and features checks in `scripts/check_artifacts.py`; the variogram figure.
+- Result selection now covers sampling envelopes and point samples, which only interval compositing excludes.
+
 ## [0.06.000], 2026-09-26
 
 ### Added
