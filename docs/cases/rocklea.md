@@ -80,6 +80,26 @@ wt%. Its downhole variogram rises from about 48 at 1 m to about 260 at 12 m, bel
 spatial pairs between holes already sit near 210 at the first lag: continuity along a hole is short, and much of the
 variance lies between holes. [The precompute page](../architecture/05_precompute-pipeline.md) shows the variograms.
 
+## Models
+
+The covariance selected on the validation holes, for Fe:
+
+| Scheme | Population | Model | Validation RMSE (wt%) |
+|---|---|---|---:|
+| hole-group | 1 m | nugget 158 + exponential 166, ranges 3,000 m north, 1,862 m east, 62 m vertical | 14.09 |
+| hole-group | 2 m | nugget 134 + exponential 160, ranges 2,999 / 1,895 / 66 m | 13.06 |
+| hole-group | 5 m | nugget 84 + exponential 170, ranges 2,212 / 2,999 / 82 m | 10.89 |
+| spatial-margin | 1 m | nugget 55 + spherical 148 (58 / 102 / 40 m) + spherical 121 (2,981 / 1,857 / 8 m) | 12.27 |
+| spatial-margin | 2 m | nugget 51 + spherical 126 (6 / 103 / 41 m) + spherical 105 (2,981 / 1,724 / 9 m) | 11.39 |
+| spatial-margin | 5 m | nugget 32 + spherical 92 (103 / 285 / 95 m) + spherical 112 (1,917 / 2,981 / 11 m) | 9.00 |
+
+Every model has one horizontal range at the fitting bound (five times the largest fitted separation), which the
+models record: the variograms are flat beyond the first lag of about 50 m, so horizontal continuity is not resolved at
+the roughly 100 m drilling grid, and much of the variance between holes appears as nugget. Longer composites lower the
+nugget and the validation error, as support averaging predicts. Every method predicts every test sample; universal
+kriging needed its declared enlarged neighbourhood for 39 samples of the 1 m and 19 of the 2 m hole-group populations,
+where the chosen holes lay in one vertical plane.
+
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158

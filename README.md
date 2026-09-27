@@ -9,8 +9,8 @@ by path.
 
 ## Current release
 
-Version 0.07.000. The build follows ten units (SD-1 to SD-10); the first five stages of the offline pipeline are
-complete, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
+Version 0.08.000. The build follows ten units (SD-1 to SD-10); the first seven stages of the offline pipeline are
+complete for the classical methods, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
 [`schemas/project.schema.json`](schemas/project.schema.json):
 
 | Stage | What it does | Families |
@@ -20,6 +20,8 @@ complete, your own files import through a manifest ([guide](docs/guides/02_bring
 | `preprocess` | desurveys every hole, positions every support, selects results, composites, overlays logs and names the modeling populations | all three |
 | `dataset` | freezes hole-group, spatial-margin and declared splits; every derivative follows its hole | Rocklea, Alberta (NTGS has one hole) |
 | `features` | training-only statistics, declustering and experimental variograms | Rocklea, Alberta |
+| `train` | covariance candidates selected on validation, LMC, indicator covariances, normal scores | Rocklea, Alberta |
+| `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on every test target | Rocklea, Alberta |
 
 The three field families are [Rocklea Dome](docs/cases/rocklea.md) (CSIRO, 5,035 one-metre multielement intervals in
 158 holes), [Alberta MAR_19860002](docs/cases/alberta.md) (22 inclined holes with logged geology and 176 sampling
@@ -41,6 +43,8 @@ export SONDARA_RAW=/path/outside/the/repo
 .venv-pipeline/Scripts/python data-pipeline/run.py preprocess
 .venv-pipeline/Scripts/python data-pipeline/run.py dataset
 .venv-pipeline/Scripts/python data-pipeline/run.py features
+.venv-pipeline/Scripts/python data-pipeline/run.py train
+.venv-pipeline/Scripts/python data-pipeline/run.py infer
 .venv-pipeline/Scripts/python scripts/check_artifacts.py
 ```
 

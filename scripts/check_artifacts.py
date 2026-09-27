@@ -281,6 +281,73 @@ def check_features(features: dict, dataset: dict) -> list[str]:
     return errors
 
 
+PREDICTION_STATUSES = {"estimated", "uninformed", "failed", "prior-only"}
+
+
+def check_models(models: dict, features: dict) -> list[str]:
+    """Return every violation of a models output: its input, rebuildable models, and a selection by validation."""
+    from stages.models import model_from, transform_from
+
+    if models.get("inputFeaturesSha256") != stable_hash(features):
+        return ["models were fitted on other features"]
+    errors = []
+    for scheme in models.get("schemes", []):
+        for p in scheme["populations"]:
+            label = f"{scheme['scheme']}/{p['population']}"
+            if p["status"] != "fitted":
+                if not p.get("reason"):
+                    errors.append(f"{label}: a population without a model states no reason")
+                continue
+            admissible = [c for c in p["candidates"] if c["status"] == "fitted" and c["validationRmse"] is not None
+                          and c["validationCoverage"] >= models["candidates"]["minValidationCoverage"]]
+            best = min(admissible, key=lambda c: (c["validationRmse"], c["objective"]), default=None)
+            if best is None or best["validationRmse"] != p["selected"]["validationRmse"] or best["model"] != p["model"]:
+                errors.append(f"{label}: the selected model is not the lowest validation error")
+            try:
+                model_from(p["model"])
+                for part in ("universal", "lmc", "gaussian"):
+                    if p.get(part, {}).get("status") == "fitted":
+                        model_from(p[part]["model"])
+                if p.get("gaussian", {}).get("status") == "fitted":
+                    transform_from(p["gaussian"]["transform"])
+                for t in p["indicator"]["thresholds"]:
+                    if t["status"] == "fitted":
+                        model_from(t["model"])
+            except Exception as error:  # noqa: BLE001 - any rebuild failure is a contract violation
+                errors.append(f"{label}: a stored model does not rebuild ({error})")
+            thresholds = [t["threshold"] for t in p["indicator"]["thresholds"]]
+            if thresholds != sorted(set(thresholds)):
+                errors.append(f"{label}: indicator thresholds are not strictly increasing")
+    return errors
+
+
+def check_predictions(predictions: dict, models: dict) -> list[str]:
+    """Return every violation of a predictions output: its input, and every method on every target with a status."""
+    from stages.estimators import METHODS
+
+    if predictions.get("inputModelsSha256") != stable_hash(models):
+        return ["predictions come from other models"]
+    errors = []
+    for scheme in predictions.get("schemes", []):
+        for p in scheme["populations"]:
+            label = f"{scheme['scheme']}/{p['population']}"
+            if not p["targets"]:
+                continue
+            if set(p["methods"]) != set(METHODS):
+                errors.append(f"{label}: methods {sorted(set(METHODS) - set(p['methods']))} are missing")
+            for method, result in p["methods"].items():
+                if [r["id"] for r in result["rows"]] != p["targets"]:
+                    errors.append(f"{label}/{method}: rows do not match the targets")
+                for r in result["rows"]:
+                    if r["status"] not in PREDICTION_STATUSES:
+                        errors.append(f"{label}/{method}: status {r['status']!r}")
+                    elif r["status"] == "estimated" and method != "multiple-indicator" and not _finite(r["mean"]):
+                        errors.append(f"{label}/{method}: an estimated target has no finite mean")
+                    elif r["status"] != "estimated" and r["status"] != "prior-only" and not r.get("reason"):
+                        errors.append(f"{label}/{method}: a target without an estimate states no reason")
+    return errors
+
+
 def check_family(folder: Path) -> list[str]:
     project_path, summary_path = folder / "project.json", folder / "summary.json"
     if not summary_path.is_file():
@@ -305,7 +372,14 @@ def check_family(folder: Path) -> list[str]:
             dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
             errors += check_dataset(dataset, project, pre)
             if features_path.is_file():
-                errors += check_features(json.loads(features_path.read_text(encoding="utf-8")), dataset)
+                features = json.loads(features_path.read_text(encoding="utf-8"))
+                errors += check_features(features, dataset)
+                models_path, predictions_path = folder / "models.json", folder / "predictions.json"
+                if models_path.is_file():
+                    models = json.loads(models_path.read_text(encoding="utf-8"))
+                    errors += check_models(models, features)
+                    if predictions_path.is_file():
+                        errors += check_predictions(json.loads(predictions_path.read_text(encoding="utf-8")), models)
     return [f"{folder.name}: {e}" for e in errors]
 
 
@@ -323,8 +397,9 @@ def main(argv=None) -> int:
         for error in errors:
             print(f"  - {error}")
         return 1
-    names = ("preprocessed.json", "dataset.json", "features.json")
-    stages = {f.name: " + ".join(["ingest"] + [n.split(".")[0].replace("preprocessed", "preprocess") for n in names
+    names = ("preprocessed.json", "dataset.json", "features.json", "models.json", "predictions.json")
+    stages = {f.name: " + ".join(["ingest"] + [n.split(".")[0].replace("preprocessed", "preprocess").replace("models", "train")
+                                                .replace("predictions", "infer") for n in names
                                                if (f / n).is_file()]) for f in folders}
     print("PROJECT CONTRACT OK: " + ", ".join(f"{k} ({v})" for k, v in stages.items()))
     return 0

@@ -15,6 +15,10 @@ engine is the separate [GeoCond](https://pypi.org/project/geocond/) package, con
 | `stages/preprocess.py` | The preprocess stage on GeoCond: desurvey, support positions, result selection, eligibility, compositing, log overlays and fragments, gaps, repeats and the modeling populations |
 | `stages/dataset.py` | Frozen grouped splits: hole-group, spatial-margin with a buffer, and a declared holdout; memberships of every derived table |
 | `stages/features.py` | Training-only statistics, cell declustering, GeoCond experimental variograms (downhole, directional, cross) and declared orientations |
+| `stages/models.py` | Fitted GeoCond models, normal-score tables and variograms as JSON records and back, exactly |
+| `stages/estimators.py` | The eight classical methods on shared observations, targets and neighbourhood, with domain policies and honest statuses |
+| `stages/train.py` | Candidate covariances selected on validation, residual covariance, LMC, indicator covariances, normal scores |
+| `stages/infer.py` | Every method on every test target of each scheme and population |
 | `learned/` | Contracts, features, networks, training, evaluation and ONNX export for the learned methods (unit SD-7) |
 
 ## Setup and run
@@ -28,6 +32,8 @@ export SONDARA_RAW=/path/outside/the/repo        # raw downloads; never committe
 .venv-pipeline/Scripts/python data-pipeline/run.py preprocess
 .venv-pipeline/Scripts/python data-pipeline/run.py dataset
 .venv-pipeline/Scripts/python data-pipeline/run.py features
+.venv-pipeline/Scripts/python data-pipeline/run.py train
+.venv-pipeline/Scripts/python data-pipeline/run.py infer
 .venv-pipeline/Scripts/python scripts/check_artifacts.py
 ```
 

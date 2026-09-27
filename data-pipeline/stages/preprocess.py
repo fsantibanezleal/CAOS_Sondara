@@ -525,20 +525,20 @@ def imported(project, surveys, selection, options):
     populations = []
     for analyte in analytes:
         native = [r for r in selection["rows"] if r["analyteId"] == analyte]
-        populations.append(_population(
+        populations.append({**_population(
             f"{project['id']}-{analyte}-native", "estimation", "original interval",
             sorted({r["representative"] for r in native}), [r["geometry"][0] for r in native],
-            f"every interval geometry with a selected measured {analyte} value"))
+            f"every interval geometry with a selected measured {analyte} value"), "analyte": analyte})
         for length in options["lengths"]:
             rows = [r for r in composites["rows"] if r["length"] == length]
             full = [r for r in rows if r["values"][analyte] is not None and r["toMd"] - r["fromMd"] >= length - TOLERANCE]
-            populations.append(_population(
+            populations.append({"analyte": analyte, **_population(
                 f"{project['id']}-{analyte}-{length:g}m", "estimation", f"{length:g} m composite",
                 [r["id"] for r in full], [r["holeId"] for r in full],
                 f"{length:g} m composites whose {analyte} coverage meets {options['minCoverage']:g}",
                 {"notCovered": sum(r["values"][analyte] is None for r in rows),
                  "residual": sum(r["values"][analyte] is not None and r["toMd"] - r["fromMd"] < length - TOLERANCE
-                                 for r in rows)}))
+                                 for r in rows)})})
     waterfall = [{"step": "samples", "count": len(project["supports"])},
                  {"step": "distinct interval geometries", "count": geometries},
                  {"step": "selected values", "count": len(selection["rows"])},

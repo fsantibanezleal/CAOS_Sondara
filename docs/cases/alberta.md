@@ -77,6 +77,18 @@ cell-declustered mean of 7.6 ppm. Its omnidirectional variogram's first bin, cen
 its downhole variogram (10 m lag, the median envelope length) holds 90 pairs at the first lag: weak evidence, recorded
 with its pair counts.
 
+## Models
+
+The covariance selected on the validation holes, for Cu at the envelope centres:
+
+| Scheme | Model | Validation RMSE (ppm) |
+|---|---|---:|
+| hole-group | spherical 336, ranges 10,204 m (azimuth 135), 75 m, 2,611 m vertical | 11.21 |
+| spatial-margin | exponential 274, ranges 23,519 m (azimuth 135, at the fitting bound), 47 m, 4,380 m | 7.21 |
+
+With 13 or 14 training holes about 700 m apart, the fits rest on few pairs and should be read as weak evidence; the
+two schemes disagree on the family and the ranges. Every method predicts every test envelope.
+
 ## What it can and cannot answer
 
 Alberta supplies the inclined-hole, logged-geology and native-support scenarios (A01 to A08): support QA, the

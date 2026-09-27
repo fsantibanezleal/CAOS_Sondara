@@ -13,8 +13,8 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 3 | `preprocess` | Exact desurvey, support positions, compositing, the log overlay and the modeling populations, through GeoCond | 0.04.000 (Rocklea, Alberta, NTGS) |
 | 4 | `dataset` | Frozen hole-group, spatial-margin and declared train, validation, calibration and test assignments; every derivative stays with its hole | 0.07.000 |
 | 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
-| 6 | `train` | Covariance, LMC and indicator fitting, normal-score preparation, DeepKriging, KCN and autoencoder training, model selection and train-only calibration | planned |
-| 7 | `infer` | Every continuous estimator on the identical targets; SNESIM and Direct Sampling realizations; CPU and GPU method identity kept | planned |
+| 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; the learned models come with SD-7 | 0.08.000 (classical) |
+| 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM, Direct Sampling and the learned methods come with SD-6 and SD-7 | 0.08.000 (classical) |
 | 8 | `evaluate` | Native-unit bias, MAE and RMSE, support coverage, class probability scores, hard-data honor and structural metrics | planned |
 | 9 | `export` | Arrow and Parquet tables, typed geometry, tiled fields, the model registry, metrics and an immutable manifest | planned |
 | 10 | `validate` | Source identity, every expected method, case and variant cell, masks, seeds, license attribution and offline and live parity | planned |
@@ -102,6 +102,26 @@ per scheme, population and analyte, the statistics and variograms of the trainin
   <source media="(prefers-color-scheme: dark)" srcset="../assets/features-rocklea-variograms-dark.svg">
   <img alt="Downhole and vertical variograms of Fe rising over the first metres toward the training variance, and omnidirectional and four horizontal directional variograms near that variance from the first spatial lag." src="../assets/features-rocklea-variograms-light.svg" width="820">
 </picture>
+
+## Models and predictions (stages 6 and 7)
+
+`models.json` (`drillhole.models/v1`) holds, per scheme and population, every candidate covariance and the one chosen:
+
+| Part | Rule |
+|---|---|
+| candidates | spherical and exponential isotropic fits on the omnidirectional variogram; spherical, exponential and nested spherical anisotropic fits on the four horizontal and the vertical variograms in frames at azimuths 0, 45, 90 and 135 degrees; 14 in all, each with its fit objective, the range bound it may reach, and its validation RMSE and coverage |
+| selection | the lowest validation RMSE of ordinary kriging among candidates that estimate at least 90 % of the validation targets; test values are never read |
+| universal kriging | a training-only linear trend in x, y and z and the covariance fitted to its residuals |
+| LMC | a joint isotropic fit of the declared variables' direct and cross variograms, every sill matrix positive semidefinite by construction |
+| MIK | indicator covariances at the training-weighted deciles (cell declustering); a threshold whose fit fails is recorded |
+| SGS | a weighted normal-score table of the training values and the covariance of their scores |
+
+`predictions.json` (`drillhole.predictions/v1`) holds, per scheme and population, every method's row for every test
+target: status (estimated, uninformed, failed, prior-only), reason, mean, variance, and the samples, holes and largest
+per-hole count behind it (probabilities for MIK, the ensemble mean and quantiles for SGS). All methods condition on the
+training rows only, with one neighbourhood plan: 4 to 24 samples, at most 6 from one hole. Universal kriging whose
+drift is rank deficient in that neighbourhood is retried once with 48 samples and marked, never replaced by ordinary
+kriging; SGS drops the per-hole cap on its path, where simulated nodes have no hole.
 
 ## Determinism
 
