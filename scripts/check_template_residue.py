@@ -42,6 +42,8 @@ FORBIDDEN_PATH_NAME = (
     "INSTANTIATE.md",
     "instantiate.md",
 )
+# The instantiation guide ships numbered (docs/guides/00_instantiate.md); any name ending so is residue.
+FORBIDDEN_NAME_ENDING = "instantiate.md"
 
 # Tracked TEXT content that must not survive instantiation (unambiguous template tokens only;
 # generic capability words like "Pyodide" are intentionally NOT listed, a product may truly use it).
@@ -51,6 +53,16 @@ FORBIDDEN_CONTENT = (
     "PENDING-training",
     "EX01_subcritical",
     "EX02_epidemic",
+    # The template's example markers in prose: Sondara shipped its epidemic example as the model-evaluation page, an
+    # SIR data contract in data/README.md and the template blueprint as STRUCTURE.md until 0.09.000, all missed.
+    "EXAMPLE (SIR)",
+    "EXAMPLE SIR",
+    "EXAMPLE engine",
+    "EXAMPLE schema",
+    "EXAMPLE data is",
+    "peak-infected",
+    "Template blueprint",
+    "00_instantiate",
 )
 
 TEXT_SUFFIXES = {
@@ -95,7 +107,8 @@ def main() -> int:
         low = rel.lower()
         if (any(s in rel for s in FORBIDDEN_PATH_SUBSTR)
                 or any(low.endswith(sfx) for sfx in FORBIDDEN_PATH_SUFFIX)
-                or Path(rel).name in FORBIDDEN_PATH_NAME):
+                or Path(rel).name in FORBIDDEN_PATH_NAME
+                or low.endswith(FORBIDDEN_NAME_ENDING)):
             path_hits.append(rel)
             continue  # a forbidden path need not also be content-scanned
 

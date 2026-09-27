@@ -1,5 +1,9 @@
 # The live (Pyodide) lane
 
+**Status in Sondara: not built.** `frontend/src/pyodide/` holds the archetype's stub, and no Sondara engine runs in
+the browser. The web unit (SD-9) decides, by the [gate](03_the-gate.md), whether any selected-target recompute runs
+live; replay of the exported artifacts is the baseline.
+
 Optional client-side recompute, like SimLab: load Pyodide in a web worker, load the inlined engine sources
 (`frontend/public/pyodide/sources.json`, produced by `copy-data.mjs`), and call
 `pipeline.live.run_trace_json(case_id|params, seed)`, which uses ONLY `pipeline/model/` (pure-Python,

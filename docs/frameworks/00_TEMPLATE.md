@@ -22,5 +22,4 @@ Which stage uses it (`infer`/`train`/…), its inputs/outputs, and which contrac
 Numerical caveats, performance, and redistribution terms.
 
 ---
-*The template's EXAMPLE engine is numpy-only SIR, so it ships no SOTA card, a real product fills one per engine
-(e.g. `01_yade/`, `02_ortools/`, `03_mintpy/`, `04_torch/`).*
+*One card per engine, numbered in the order the pipeline adopts them (Sondara: `01_geocond/`).*
