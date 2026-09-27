@@ -15,7 +15,7 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
 | 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; the learned models come with SD-7 | 0.08.000 (classical) |
 | 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM, Direct Sampling and the learned methods come with SD-6 and SD-7 | 0.08.000 (classical) |
-| 8 | `evaluate` | Native-unit bias, MAE and RMSE, support coverage, class probability scores, hard-data honor and structural metrics | planned |
+| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; the scenario matrix | 0.09.000 (classical) |
 | 9 | `export` | Arrow and Parquet tables, typed geometry, tiled fields, the model registry, metrics and an immutable manifest | planned |
 | 10 | `validate` | Source identity, every expected method, case and variant cell, masks, seeds, license attribution and offline and live parity | planned |
 
@@ -114,14 +114,24 @@ per scheme, population and analyte, the statistics and variograms of the trainin
 | universal kriging | a training-only linear trend in x, y and z and the covariance fitted to its residuals |
 | LMC | a joint isotropic fit of the declared variables' direct and cross variograms, every sill matrix positive semidefinite by construction |
 | MIK | indicator covariances at the training-weighted deciles (cell declustering); a threshold whose fit fails is recorded |
-| SGS | a weighted normal-score table of the training values and the covariance of their scores |
+| SGS | a weighted normal-score table of the training values, and a Gaussian-space covariance chosen among twelve anisotropic candidates (four frames, three family sets) fitted on the normal scores' horizontal and vertical variograms, by the validation RMSE of simple kriging of the normal scores |
+| structure | the residual, LMC and indicator covariances are fitted with the families and frame selected for OK, on the horizontal and vertical variograms of their own values |
 
 `predictions.json` (`drillhole.predictions/v1`) holds, per scheme and population, every method's row for every test
 target: status (estimated, uninformed, failed, prior-only), reason, mean, variance, and the samples, holes and largest
 per-hole count behind it (probabilities for MIK, the ensemble mean and quantiles for SGS). All methods condition on the
 training rows only, with one neighbourhood plan: 4 to 24 samples, at most 6 from one hole. Universal kriging whose
 drift is rank deficient in that neighbourhood is retried once with 48 samples and marked, never replaced by ordinary
-kriging; SGS drops the per-hole cap on its path, where simulated nodes have no hole.
+kriging; SGS searches the data (the same plan, at most 6 per hole) and 12 previously simulated nodes apart, GeoCond
+0.7.0's two-part search, so the dense nodes of a held-out hole cannot crowd the other holes out.
+
+## Metrics and the scenario matrix (stage 8)
+
+`metrics.json` (`drillhole.metrics/v1`) holds, per scheme and population, every method's scores on its own and on the
+common targets, the paired comparison with OK, the calibration, MIK and SGS scores, the scenario variants and a
+receipt with the seeds, plan, engine versions and hashes. `scenarios.json` (`drillhole.scenarios/v1`) resolves the 32
+registered scenarios cell by cell. Both are checked by `scripts/check_artifacts.py`, and the definitions, results and
+limits are on [the model-evaluation page](06_model-evaluation.md).
 
 ## Determinism
 

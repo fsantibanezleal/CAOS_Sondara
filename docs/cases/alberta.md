@@ -89,6 +89,14 @@ The covariance selected on the validation holes, for Cu at the envelope centres:
 With 13 or 14 training holes about 700 m apart, the fits rest on few pairs and should be read as weak evidence; the
 two schemes disagree on the family and the ranges. Every method predicts every test envelope.
 
+## Evaluation
+
+With three test holes per scheme (28 and 26 envelope centres), no method separates from OK (RMSE 5.47 ppm Cu inside
+the drilled area, 11.15 at the margin) beyond wide hole-block intervals, and Zn does not improve Cu. The kriging
+variances are about five times too large (variance scale 0.19, from two calibration holes), MIK has no skill, and
+the Gaussian-space model's sill (1.87) makes the SGS realizations twice as variable as the truths. These are weak
+evidence, as the fits are. Tables and caveats: [model evaluation](../architecture/06_model-evaluation.md).
+
 ## What it can and cannot answer
 
 Alberta supplies the inclined-hole, logged-geology and native-support scenarios (A01 to A08): support QA, the

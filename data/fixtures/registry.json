@@ -9,7 +9,8 @@
     "dataset",
     "features",
     "train",
-    "infer"
+    "infer",
+    "evaluate"
   ],
   "fixtures": [
     {

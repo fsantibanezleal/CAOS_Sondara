@@ -15,9 +15,12 @@ re-litigated); per-product rework lives only in the **core**, models/algorithms,
 A measured **[gate](03_the-gate.md)** decides live vs replay per case.
 
 ## The flow
-`data/raw` → **[CONTRACT 1](08_data-contracts.md)** (`io/contract.py`) → staged pipeline
-(preprocess → feature_extraction → train → infer → evaluate → export) → **[CONTRACT 2](08_data-contracts.md)**
-(`core/manifest.py`, compact artifact) → `data/derived/` (committed) → `frontend/` replays it.
+Pinned sources or user files enter through the sources manifest or an import manifest
+([the data contracts](08_data-contracts.md)); the ten stages of `data-pipeline/run.py` (acquire, ingest, preprocess,
+dataset, features, train, infer, evaluate, export, validate) turn them into the canonical project and then into
+models, predictions and metrics, each output naming the hash of its input
+([the precompute pipeline](05_precompute-pipeline.md)); the export stage (unit SD-8) writes the compact artifacts
+under an immutable manifest, and the web page (unit SD-9) replays them.
 
 ## Frozen base vs rework
 - **Frozen:** the folder layout, the two contracts, the staged pipeline names, the gate, the manifest/trace,

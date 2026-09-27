@@ -9,6 +9,7 @@
     python data-pipeline/run.py features   [--family ...] [--out DIR]
     python data-pipeline/run.py train      [--family ...] [--out DIR]
     python data-pipeline/run.py infer      [--family ...] [--out DIR]
+    python data-pipeline/run.py evaluate   [--family ...] [--out DIR]
 
 ``acquire`` fetches the pinned sources of ``data/sources/manifest.json`` (or copies the bundled licensed subset),
 checking every byte count and SHA-256, and writes an acquisition receipt. ``ingest`` builds each family's canonical
@@ -21,7 +22,9 @@ and method priority from the stored manifest. ``dataset`` freezes the grouped sp
 spatial-margin and a declared holdout) before any fit, and ``features`` computes training-only statistics,
 declustering and experimental variograms (``stages/dataset.py``, ``stages/features.py``). ``train`` fits and selects
 the covariance models on training and validation rows (``stages/train.py``), and ``infer`` predicts the test rows with
-the eight classical methods (``stages/infer.py``). Each stage checks the hash of its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
+the eight classical methods (``stages/infer.py``). ``evaluate`` scores them against the test truths and rebuilds the
+scenario matrix ``<out>/scenarios.json`` (``stages/evaluate.py``, ``stages/scenarios.py``). Each stage checks the hash of
+its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
 outputs go to ``--out`` (default ``build/derived``).
 """
 
@@ -196,9 +199,27 @@ def infer(family: str, out: Path) -> dict:
     return {"family": family, "eligible": result["eligible"], "seconds": round(time.time() - t0, 1)}
 
 
+def evaluate(family: str, out: Path) -> dict:
+    from stages.evaluate import evaluate_family
+    from stages.scenarios import scenario_matrix
+
+    t0 = time.time()
+    target, project, pre, split = _chain(family, out)
+    predictions, models = load_json(target / "predictions.json"), load_json(target / "models.json")
+    if predictions["inputModelsSha256"] != stable_hash(models):
+        raise ValueError(f"{family}: predictions.json came from other models; run infer again")
+    result = evaluate_family(family, project, pre, split, predictions, models)
+    write_json(target / "metrics.json", result)
+    matrix = scenario_matrix(out)
+    write_json(out / "scenarios.json", matrix, pretty=True)
+    return {"family": family, "eligible": result["eligible"], "scenarioCells": matrix["counts"],
+            "seconds": round(time.time() - t0, 1)}
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("stage", choices=["acquire", "ingest", "preprocess", "dataset", "features", "train", "infer"])
+    parser.add_argument("stage", choices=["acquire", "ingest", "preprocess", "dataset", "features", "train", "infer",
+                                          "evaluate"])
     parser.add_argument("--family", default="all", help="rocklea, alberta, ntgs, all, or an imported project id")
     parser.add_argument("--manifest", type=Path, help="ingest user files described by this import manifest")
     parser.add_argument("--cache", type=Path, default=Path(os.environ.get("SONDARA_RAW", ROOT / "build" / "sources")))
@@ -228,8 +249,10 @@ def main(argv=None) -> int:
             print(json.dumps(features(family, args.out)))
         elif args.stage == "train":
             print(json.dumps(train(family, args.out)))
-        else:
+        elif args.stage == "infer":
             print(json.dumps(infer(family, args.out)))
+        else:
+            print(json.dumps(evaluate(family, args.out)))
     return 0
 
 

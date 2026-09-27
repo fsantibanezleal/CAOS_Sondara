@@ -348,6 +348,55 @@ def check_predictions(predictions: dict, models: dict) -> list[str]:
     return errors
 
 
+def check_metrics(metrics: dict, predictions: dict) -> list[str]:
+    """Return every violation of a metrics output: its input, and every method scored for every population."""
+    from stages.estimators import METHODS
+
+    if metrics.get("inputPredictionsSha256") != stable_hash(predictions):
+        return ["metrics were computed from other predictions"]
+    errors = []
+    predicted = {(s["scheme"], p["population"]): p for s in predictions.get("schemes", []) for p in s["populations"]}
+    for scheme in metrics.get("schemes", []):
+        for p in scheme["populations"]:
+            label = f"{scheme['scheme']}/{p['population']}"
+            source = predicted.get((scheme["scheme"], p["population"]))
+            if source is None:
+                errors.append(f"{label}: no such predictions")
+                continue
+            if not source["methods"]:
+                continue
+            if set(p["methods"]) != set(METHODS):
+                errors.append(f"{label}: methods {sorted(set(METHODS) - set(p['methods']))} are not scored")
+            for method, entry in p["methods"].items():
+                common = entry.get("common")
+                if common is not None and common.get("n") != p["commonTargets"]:
+                    errors.append(f"{label}/{method}: common scores cover {common.get('n')} of {p['commonTargets']}")
+    return errors
+
+
+def check_scenarios(matrix: dict, out_dir: Path) -> list[str]:
+    """Return every violation of the scenario matrix: coverage of the registry, owners, and fresh metric hashes."""
+    registry = json.loads((ROOT / "data" / "scenarios" / "registry.json").read_text(encoding="utf-8"))
+    errors = []
+    if [s["id"] for s in matrix["scenarios"]] != [s["id"] for s in registry["scenarios"]]:
+        errors.append("the matrix does not list the registered scenarios in order")
+    current = {}
+    for family in ("rocklea", "alberta"):
+        path = Path(out_dir) / family / "metrics.json"
+        if path.is_file():
+            current[family] = stable_hash(json.loads(path.read_text(encoding="utf-8")))
+    for s in matrix["scenarios"]:
+        for c in s["cells"]:
+            if c["status"] == "missing":
+                errors.append(f"{s['id']}: a cell is missing ({c.get('reason', c['kind'])})")
+            if c["status"] == "pending" and not c.get("owner"):
+                errors.append(f"{s['id']}: a pending cell names no owner")
+            if c["status"] == "computed" and c["kind"] in ("metric", "variant") \
+                    and c.get("metricsSha256") != current.get(c["family"]):
+                errors.append(f"{s['id']}: a computed cell cites stale metrics")
+    return errors
+
+
 def check_family(folder: Path) -> list[str]:
     project_path, summary_path = folder / "project.json", folder / "summary.json"
     if not summary_path.is_file():
@@ -379,7 +428,11 @@ def check_family(folder: Path) -> list[str]:
                     models = json.loads(models_path.read_text(encoding="utf-8"))
                     errors += check_models(models, features)
                     if predictions_path.is_file():
-                        errors += check_predictions(json.loads(predictions_path.read_text(encoding="utf-8")), models)
+                        predictions = json.loads(predictions_path.read_text(encoding="utf-8"))
+                        errors += check_predictions(predictions, models)
+                        metrics_path = folder / "metrics.json"
+                        if metrics_path.is_file():
+                            errors += check_metrics(json.loads(metrics_path.read_text(encoding="utf-8")), predictions)
     return [f"{folder.name}: {e}" for e in errors]
 
 
@@ -392,14 +445,18 @@ def main(argv=None) -> int:
         print(f"FAIL: no ingested project under {args.derived} (run data-pipeline/run.py ingest first)")
         return 1
     errors = [e for folder in folders for e in check_family(folder)]
+    if (args.derived / "scenarios.json").is_file():
+        matrix = json.loads((args.derived / "scenarios.json").read_text(encoding="utf-8"))
+        errors += [f"scenarios: {e}" for e in check_scenarios(matrix, args.derived)]
     if errors:
         print("PROJECT CONTRACT VIOLATIONS:")
         for error in errors:
             print(f"  - {error}")
         return 1
-    names = ("preprocessed.json", "dataset.json", "features.json", "models.json", "predictions.json")
+    names = ("preprocessed.json", "dataset.json", "features.json", "models.json", "predictions.json", "metrics.json")
     stages = {f.name: " + ".join(["ingest"] + [n.split(".")[0].replace("preprocessed", "preprocess").replace("models", "train")
-                                                .replace("predictions", "infer") for n in names
+                                                .replace("predictions", "infer").replace("metrics", "evaluate")
+                                                for n in names
                                                if (f / n).is_file()]) for f in folders}
     print("PROJECT CONTRACT OK: " + ", ".join(f"{k} ({v})" for k, v in stages.items()))
     return 0
