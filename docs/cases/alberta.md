@@ -64,6 +64,19 @@ point or log endpoint lies beyond its hole's total depth. Each envelope is then 
 
 These numbers reproduce the research audit exactly.
 
+## Splits and features
+
+| Scheme | Train | Validation | Calibration | Test |
+|---|---:|---:|---:|---:|
+| hole-group | 13 | 4 | 2 | 3 |
+| spatial-margin | 14 | 3 | 2 | 3 |
+
+Each hole's nearest neighbour is a median of about 710 m away, so the 1,062 m buffer excludes no hole. On the
+envelope-centre population of the hole-group split, Cu has 102 training envelopes in 13 holes, a mean of 8.7 ppm and a
+cell-declustered mean of 7.6 ppm. Its omnidirectional variogram's first bin, centred near 600 m, holds 49 pairs, and
+its downhole variogram (10 m lag, the median envelope length) holds 90 pairs at the first lag: weak evidence, recorded
+with its pair counts.
+
 ## What it can and cannot answer
 
 Alberta supplies the inclined-hole, logged-geology and native-support scenarios (A01 to A08): support QA, the

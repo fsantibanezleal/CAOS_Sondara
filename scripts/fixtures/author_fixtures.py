@@ -401,6 +401,22 @@ def f30(d):
                                                repeats={"REP": "repeat"}), lith_file("lithology.csv")]))
 
 
+def f40(d):
+    holes = [("A", 0.0), ("B", 60.0), ("C", 120.0), ("D", 180.0), ("E", 240.0)]
+    collars_csv(d / "collars.csv", [(h, 500000.0 + x, 7400000.0, 1000.0, 8.0, 0.0, -90.0) for h, x in holes])
+    header = ("HoleID", "SampleID", "From", "To", "Type", "Cu_ppm")
+    rows = [(h, f"{h}{k}", 2.0 * k, 2.0 * k + 2.0, "", f"{10 * n + k + 1}")
+            for n, (h, _) in enumerate(holes) for k in range(4)]
+    rows.append(("B", "B1R", 2.0, 4.0, "REP", "99"))
+    assays_csv(d / "assays.csv", rows, header)
+    lith_csv(d / "lithology.csv", [("B", 0.0, 3.0, "OX", "oxidised"), ("B", 3.0, 8.0, "FR", "fresh")])
+    columns = {**ASSAY_COLUMNS, "sampleType": "Type"}
+    write_json(d / "import.json", manifest("f40", [
+        collar_file("collars.csv"), assay_file("assays.csv", {"Cu_ppm": ANALYTES["Cu_ppm"]}, columns=columns,
+                                               repeats={"REP": "repeat"}), lith_file("lithology.csv")],
+                                           holdout=["s:B"], compositing={"lengths": [2.0, 4.0], "minCoverage": 1.0}))
+
+
 def f41(d):
     files = base(d)
     write_json(d / "import.json", manifest("f41", files))
@@ -477,9 +493,11 @@ REGISTRY = [
     ("F35", "Hard versus soft domain boundary", "infer", "The declared support and range rules enforced", None),
     ("F36", "Prior without nearby observations", "infer", "An explicit prior-driven result with absent conditioning", None),
     ("F37", "Missing external drift or deficient rank", "infer", "Unsupported model or target; no silent method switch", None),
-    ("F38", "Conflicting orientation normals", "features", "Undefined or unstable orientation diagnosed", None),
+    ("F38", "Conflicting orientation normals", "features", "Undefined or unstable orientation diagnosed",
+     "tests/test_features.py::test_conflicting_orientation_normals_are_undefined"),
     ("F39", "Seeded conditional realizations", "infer", "Seed reproducibility and model-specific conditioning checks", None),
-    ("F40", "Holdout with fragments and repeats", "dataset", "Every held-out derivative and result excluded from training", None),
+    ("F40", "Holdout with fragments and repeats", "dataset", "Every held-out derivative and result excluded from training",
+     "tests/test_dataset.py::test_declared_holdout_takes_every_derivative"),
     ("F41", "Cancellation, failure and an interrupted import", "import",
      "The previous project intact; no partial final result", T + "test_an_interrupted_import_leaves_the_previous_project"),
     ("F42", "Export, re-import and CPU and accelerated parity", "export",
@@ -505,8 +523,6 @@ LATER = {
     "F38": {"orientations": [{"dip": 45, "dipDirection": 90}, {"dip": 45, "dipDirection": 270}],
             "expect": {"status": "undefined"}},
     "F39": {"seed": 20260926, "realizations": 2, "expect": {"sameSeedIdentical": True, "hardDataHonoured": True}},
-    "F40": {"heldOutHole": "B", "derivatives": ["composites", "fragments", "repeats"],
-            "expect": {"trainingContainsHeldOut": False}},
     "F42": {"roundTrip": ["project", "preprocessed", "estimates"], "tolerances": {"cpuCuda": 1e-12, "onnx": 1e-5},
             "expect": {"metadataPreserved": True}},
 }
@@ -527,7 +543,7 @@ def main() -> int:
     write_json(OUT / "registry.json", {
         "schema": "drillhole.fixtures/v1",
         "source": "Authored validation fixture catalogue, data dossier of 2026-09-10 (management repository)",
-        "builtStages": ["acquire", "ingest", "import", "preprocess"],
+        "builtStages": ["acquire", "ingest", "import", "preprocess", "dataset", "features"],
         "fixtures": fixtures})
     print(f"wrote {len(AUTHORED)} fixture folders and a registry of {len(fixtures)} fixtures to {OUT}")
     return 0

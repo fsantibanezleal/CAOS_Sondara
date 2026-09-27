@@ -187,7 +187,8 @@ def check_preprocessed(pre: dict, project: dict) -> list[str]:
         if r["representative"] not in supports:
             errors.append(f"selection of {r['determinationId']}: representative is not a project support")
         hole, a, b = r["geometry"]
-        source[(hole, r["analyteId"])] = source.get((hole, r["analyteId"]), 0.0) + r["value"] * (b - a)
+        if r["kind"] == "interval":
+            source[(hole, r["analyteId"])] = source.get((hole, r["analyteId"]), 0.0) + r["value"] * (b - a)
     composite_ids = set()
     if "composites" in pre:
         minimum = pre["composites"]["minCoverage"]
@@ -237,6 +238,49 @@ def check_preprocessed(pre: dict, project: dict) -> list[str]:
     return errors
 
 
+def check_dataset(dataset: dict, project: dict, pre: dict) -> list[str]:
+    """Return every violation of a dataset output against the project and preprocessed output it splits."""
+    from stages.dataset import SPLITS, derived_tables, members
+
+    errors = []
+    if (dataset.get("inputProjectSha256"), dataset.get("inputPreprocessedSha256")) != (stable_hash(project),
+                                                                                      stable_hash(pre)):
+        return ["dataset was built from other inputs"]
+    if not dataset["eligible"]:
+        return [] if dataset.get("reason") else ["an ineligible family states no reason"]
+    holes = {s["holeId"] for s in project["supports"]}
+    tables = derived_tables(project, pre)
+    for scheme in dataset["schemes"]:
+        assignment = scheme["assignment"]
+        buffered = set(scheme.get("excludedByBuffer", []))
+        if set(assignment) | buffered != holes or set(assignment) & buffered:
+            errors.append(f"scheme {scheme['id']}: every hole needs exactly one split or the buffer")
+        if set(assignment.values()) - set(SPLITS):
+            errors.append(f"scheme {scheme['id']}: unknown split names")
+        for name, table in tables.items():
+            split = members(table, assignment)
+            if scheme["membership"].get(name, {}).get("sha256") != stable_hash(split):
+                errors.append(f"scheme {scheme['id']}: the {name} membership record is stale")
+    return errors
+
+
+def check_features(features: dict, dataset: dict) -> list[str]:
+    """Return every violation of a features output against the dataset it was computed from."""
+    if features.get("inputDatasetSha256") != stable_hash(dataset):
+        return ["features were computed from another dataset"]
+    errors = []
+    for scheme in features.get("schemes", []):
+        for population in scheme["populations"]:
+            variograms = [v for a in population["analytes"].values() for v in a["variograms"]]
+            variograms += [v for vs in population["cross"].values() for v in vs]
+            for v in variograms:
+                if len(v["edges"]) != len(v["counts"]) + 1 or any(c < 0 for c in v["counts"]):
+                    errors.append(f"{scheme['scheme']}/{population['population']}/{v['name']}: malformed bins")
+                if any((c == 0) != (value is None) for c, value in zip(v["counts"], v["values"], strict=True)):
+                    errors.append(f"{scheme['scheme']}/{population['population']}/{v['name']}: a value needs pairs")
+    return errors
+
+
 def check_family(folder: Path) -> list[str]:
     project_path, summary_path = folder / "project.json", folder / "summary.json"
     if not summary_path.is_file():
@@ -256,6 +300,12 @@ def check_family(folder: Path) -> list[str]:
         pre_summary = json.loads(pre_summary_path.read_text(encoding="utf-8")) if pre_summary_path.is_file() else {}
         if pre_summary.get("preprocessedSha256") != stable_hash(pre):
             errors.append("preprocess summary hash does not match the preprocessed output")
+        dataset_path, features_path = folder / "dataset.json", folder / "features.json"
+        if dataset_path.is_file():
+            dataset = json.loads(dataset_path.read_text(encoding="utf-8"))
+            errors += check_dataset(dataset, project, pre)
+            if features_path.is_file():
+                errors += check_features(json.loads(features_path.read_text(encoding="utf-8")), dataset)
     return [f"{folder.name}: {e}" for e in errors]
 
 
@@ -273,7 +323,9 @@ def main(argv=None) -> int:
         for error in errors:
             print(f"  - {error}")
         return 1
-    stages = {f.name: "ingest + preprocess" if (f / "preprocessed.json").is_file() else "ingest" for f in folders}
+    names = ("preprocessed.json", "dataset.json", "features.json")
+    stages = {f.name: " + ".join(["ingest"] + [n.split(".")[0].replace("preprocessed", "preprocess") for n in names
+                                               if (f / n).is_file()]) for f in folders}
     print("PROJECT CONTRACT OK: " + ", ".join(f"{k} ({v})" for k, v in stages.items()))
     return 0
 
