@@ -1,14 +1,45 @@
 # Sondara
 
-Sondara is a live drillhole scientific workbench. It combines local multi-source collar, survey, assay and geology import with linked spatial analysis, reproducible estimation and geological simulation.
+Sondara is a drillhole scientific workbench. It combines local multi-source collar, survey, assay and geology import
+with linked spatial analysis, reproducible estimation and geological simulation, on real public drillhole data.
 
-The public workbench is released as a local-first application. Its visual section explorer, source loader, local estimator controls, scenario cases and reproducible data pipeline are available without login; the strict server contract remains bounded and separately gated.
-
-The product uses the shared CAOS application shell and a separately published numerical library. It declares no internal Python distribution; product pipelines run as scripts by path.
+The product uses the shared CAOS application shell and the separately published numerical library
+[GeoCond](https://pypi.org/project/geocond/). It declares no internal Python distribution; the pipeline runs as scripts
+by path.
 
 ## Current release
 
-**v0.2.0 is live at https://sondara.ml.fasl-work.com/** and is published from the public `main` branch. The browser workbench presents a WebGL subsurface reconstruction with surveyed borehole tubes, assay supports, an ore continuity shell, geology contacts, depth slicing and orbit/section/plan views. Collar, survey, assay and geology files remain local; the estimator controls recompute the selected support-weighted estimate in the browser.
+Version 0.04.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
+complete:
 
-The strict `sondara.job/v1` contract remains available for a later bounded server lane. It rejects arbitrary paths, URLs and oversized jobs; heavy numerical and GPU processing stays in the local pipeline until a reviewed worker is promoted. The current public site does not claim a production resource estimate or replace QA/QC, compositing, variogram fitting or competent-person review.
+| Stage | What it does | Families |
+|---|---|---|
+| `acquire` | fetches the pinned sources by URL, byte count and SHA-256, with license and attribution | all three |
+| `ingest` | builds the canonical project, its QA issues and its reconciliation waterfall | all three |
+| `preprocess` | desurveys every hole, positions every support, composites, overlays logs on sampling envelopes and names the modeling populations | all three |
 
+The three field families are [Rocklea Dome](docs/cases/rocklea.md) (CSIRO, 5,035 one-metre multielement intervals in
+158 holes), [Alberta MAR_19860002](docs/cases/alberta.md) (22 inclined holes with logged geology and 176 sampling
+envelopes) and [NTGS 12LE002](docs/cases/ntgs.md) (one hole with eleven measured survey stations). The stages, outputs
+and checks are described in [the precompute pipeline](docs/architecture/05_precompute-pipeline.md).
+
+The public page at https://sondara.ml.fasl-work.com/ still shows the local-first workbench of the 0.2 releases, with
+its authored demo cases, until the web unit (SD-9) rebuilds it on these families. It does not claim a production
+resource estimate or replace QA/QC, variogram fitting or competent-person review.
+
+## Run the pipeline
+
+```sh
+python -m venv .venv-pipeline
+.venv-pipeline/Scripts/python -m pip install -r requirements-precompute.txt -r requirements-dev.txt
+export SONDARA_RAW=/path/outside/the/repo
+.venv-pipeline/Scripts/python data-pipeline/run.py acquire
+.venv-pipeline/Scripts/python data-pipeline/run.py ingest
+.venv-pipeline/Scripts/python data-pipeline/run.py preprocess
+.venv-pipeline/Scripts/python scripts/check_artifacts.py
+```
+
+## License
+
+MIT, see [LICENSE](LICENSE). The source data keep their own licenses and attribution, listed in
+`data/sources/manifest.json` and on each case page.

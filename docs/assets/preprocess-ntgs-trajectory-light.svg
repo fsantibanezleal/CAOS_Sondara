@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="432" viewBox="0 0 760 432" role="img" aria-labelledby="t d">
+  <title id="t">NTGS 12LE002 measured trajectory</title>
+  <desc id="d">Left, the minimum-curvature path of hole 12LE002 in true-scale side view against the straight projection of its recorded collar direction; right, the distance between the two against measured depth, reaching about 9.6 m at total depth.</desc>
+  <style>
+    .t { font: 600 15px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font: 13px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .m { font: 12px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #59636e; }
+  </style>
+  <rect width="760" height="432" fill="#ffffff"/>
+  <text class="t" x="24" y="30">NTGS 12LE002: eleven measured stations bend the hole away from its collar direction</text>
+  <line x1="60.0" y1="70.0" x2="159.8" y2="344.1" stroke="#59636e" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <path d="M60.0,70.0 L75.8,115.3 L83.4,138.1 L90.9,160.9 L98.3,183.7 L105.8,206.5 L113.3,229.2 L121.0,252.1 L128.6,274.8 L136.3,297.5 L143.9,320.3 L151.5,343.1 L152.6,346.6" fill="none" stroke="#0969da" stroke-width="2.5"/>
+  <circle cx="75.8" cy="115.3" r="3" fill="#0969da"/>
+  <circle cx="83.4" cy="138.1" r="3" fill="#0969da"/>
+  <circle cx="90.9" cy="160.9" r="3" fill="#0969da"/>
+  <circle cx="98.3" cy="183.7" r="3" fill="#0969da"/>
+  <circle cx="105.8" cy="206.5" r="3" fill="#0969da"/>
+  <circle cx="113.3" cy="229.2" r="3" fill="#0969da"/>
+  <circle cx="121.0" cy="252.1" r="3" fill="#0969da"/>
+  <circle cx="128.6" cy="274.8" r="3" fill="#0969da"/>
+  <circle cx="136.3" cy="297.5" r="3" fill="#0969da"/>
+  <circle cx="143.9" cy="320.3" r="3" fill="#0969da"/>
+  <circle cx="151.5" cy="343.1" r="3" fill="#0969da"/>
+  <text class="m" x="100" y="94">side view, true scale:</text>
+  <text class="m" x="100" y="110">west 0 to 116 m,</text>
+  <text class="m" x="100" y="126">elevation 0 to -346 m</text>
+  <line x1="330" y1="330.0" x2="710" y2="330.0" stroke="#d0d7de"/>
+  <text class="m" x="322" y="334.0" text-anchor="end">0</text>
+  <line x1="330" y1="267.5" x2="710" y2="267.5" stroke="#d0d7de"/>
+  <text class="m" x="322" y="271.5" text-anchor="end">2.5</text>
+  <line x1="330" y1="205.0" x2="710" y2="205.0" stroke="#d0d7de"/>
+  <text class="m" x="322" y="209.0" text-anchor="end">5</text>
+  <line x1="330" y1="142.5" x2="710" y2="142.5" stroke="#d0d7de"/>
+  <text class="m" x="322" y="146.5" text-anchor="end">7.5</text>
+  <line x1="330" y1="80.0" x2="710" y2="80.0" stroke="#d0d7de"/>
+  <text class="m" x="322" y="84.0" text-anchor="end">10</text>
+  <text class="m" x="330.0" y="346" text-anchor="middle">0</text>
+  <text class="m" x="432.7" y="346" text-anchor="middle">100</text>
+  <text class="m" x="535.4" y="346" text-anchor="middle">200</text>
+  <text class="m" x="638.1" y="346" text-anchor="middle">300</text>
+  <text class="m" x="520.0" y="364" text-anchor="middle">measured depth (m)</text>
+  <text class="m" x="330" y="68">departure from the collar direction (m)</text>
+  <path d="M330.0,330.0 L391.6,310.3 L422.4,289.4 L453.2,265.8 L484.1,240.0 L514.9,215.6 L545.6,193.2 L576.5,171.8 L607.3,153.9 L638.1,135.4 L668.9,114.9 L699.7,94.1 L704.5,90.9" fill="none" stroke="#0969da" stroke-width="2.5"/>
+  <circle cx="391.6" cy="310.3" r="3" fill="#0969da"/>
+  <circle cx="422.4" cy="289.4" r="3" fill="#0969da"/>
+  <circle cx="453.2" cy="265.8" r="3" fill="#0969da"/>
+  <circle cx="484.1" cy="240.0" r="3" fill="#0969da"/>
+  <circle cx="514.9" cy="215.6" r="3" fill="#0969da"/>
+  <circle cx="545.6" cy="193.2" r="3" fill="#0969da"/>
+  <circle cx="576.5" cy="171.8" r="3" fill="#0969da"/>
+  <circle cx="607.3" cy="153.9" r="3" fill="#0969da"/>
+  <circle cx="638.1" cy="135.4" r="3" fill="#0969da"/>
+  <circle cx="668.9" cy="114.9" r="3" fill="#0969da"/>
+  <circle cx="699.7" cy="94.1" r="3" fill="#0969da"/>
+  <circle cx="704.5" cy="90.9" r="4" fill="none" stroke="#9a6700" stroke-width="2"/>
+  <text class="b" x="696.5" y="80.9" text-anchor="end">9.57 m at total depth 364.6 m</text>
+  <text class="m" x="24" y="394">Dots: the Reflex EZ-Shot stations from 60 to 360 m; dashed: the recorded collar direction (270 / -70) projected</text>
+  <text class="m" x="24" y="412">to total depth. Largest dogleg between stations 1.50 degrees; the last 4.6 m follow the last measured tangent.</text>
+</svg>

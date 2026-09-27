@@ -1,10 +1,11 @@
 # Frameworks
 
-One card per research-chosen engine/library, **the deep research, made binding**. Every engine the pipeline uses
-gets a card here AND an exact pin in the matching `requirements-*.txt`. No hand-rolled toy substitute for a SOTA
-engine the research prescribed.
+One card per research-chosen engine or library. Every engine the pipeline uses gets a card here and an exact pin in
+the matching requirements file.
 
-- [00, card TEMPLATE](frameworks/00_TEMPLATE.md), copy per engine to `frameworks/<NN>_<tool>/<tool>.md`
+- [01, GeoCond](frameworks/01_geocond/geocond.md): geometry, compositing, covariance, kriging, simulation and Direct
+  Sampling; pinned in `data-pipeline/requirements.txt`.
+- [Card template](frameworks/00_TEMPLATE.md), copied per engine to `frameworks/<NN>_<tool>/<tool>.md`.
 
-*(The template's EXAMPLE engine is numpy-only SIR, so it ships no SOTA card. A real product adds e.g.
-`01_yade/`, `02_ortools/`, `03_mintpy/`, `04_torch/`.)*
+The engines of the later units (MPSlib for SNESIM, PyTorch and ONNX Runtime for the learned methods) get their cards
+with the units that pin them.

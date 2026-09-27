@@ -19,6 +19,7 @@ Pin nothing here, versions live in `requirements-*.txt`.
 
 | Script | What it enforces |
 |---|---|
-| `check_artifacts.py` | Every ingested family in `build/derived` meets the `drillhole.project/v1` contract, and its summary hash and counts match. |
+| `check_artifacts.py` | Every ingested family in `build/derived` meets the `drillhole.project/v1` contract with a matching summary, and every preprocessed output is consistent with its project. |
+| `figures/preprocess_figures.py` | Draws the preprocess figures of the docs (light and dark SVG) from the real outputs in `build/derived`. |
 | `check_template_residue.py` | An instantiated product must not ship template residue (the example pipeline, SIR model, `EX0*` cases, placeholder text). No-op in the template itself while the `.template-source` sentinel exists; instantiation deletes the sentinel to arm it. See ADR-0057 / ADR-0061. |
 | `check_content_standards.py` | No em-dash (`U+2014`/`U+2015`) and no pictographic emoji in tracked content. Always on. Use comma/colon/semicolon/period/parentheses/middot instead. See ADR-0067. |

@@ -36,6 +36,34 @@ without extraction, decoded with the declared encoding, and joined on `(Data_src
   events. A many-to-one lithology mapping for categorical simulation is a separate, versioned interpretation. MR-14's
   0.05 m logging overlap and MR-16's 0.1 m gap stay as recorded.
 
+## Preprocessing
+
+Each hole is a straight projection of its recorded collar direction to total depth, so all 338 positioned supports
+(176 envelopes and 162 points) lie on that projection; the 4 samples without endpoints get no position. No envelope,
+point or log endpoint lies beyond its hole's total depth. Each envelope is then overlaid on the logged geology:
+
+| Coverage by | Covered metres (of 1,960.4) | Envelopes fully covered (of 176) |
+|---|---:|---:|
+| any positive log, including unknown units | 1,960.1 | 173 |
+| a known `Litho_unit` | 285.6 | 51 |
+| a known `Rock_type` | 207.4 | 36 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/preprocess-alberta-overlay-dark.svg">
+  <img alt="Bars showing the share of the 176 Alberta sampling envelopes covered by any log, by a known Litho_unit and by a known Rock_type, with the counts of fully covered envelopes." src="../assets/preprocess-alberta-overlay-light.svg" width="760">
+</picture>
+
+- **The three envelopes not fully logged** are MR-16's, which cross the unlogged 63.30 to 63.40 m.
+- **Two envelopes cross MR-14's 0.05 m logged twice.** The two logs do not disagree on a known code there, so the
+  report has no conflict; a piece with two different known codes would count as uncovered and be listed.
+- **Proportions stay proportions.** Partly typed envelopes carry the length share of each known code; none is promoted
+  to a single dominant category.
+- **Populations.** The envelope-centre Cu/Zn population holds the 176 envelopes on all 22 holes, placed at their
+  measured-depth centre, with 162 point samples and 4 unknown supports counted as excluded. The point samples form a
+  separate display and QA population and are never widened.
+
+These numbers reproduce the research audit exactly.
+
 ## What it can and cannot answer
 
 Alberta supplies the inclined-hole, logged-geology and native-support scenarios (A01 to A08): support QA, the
