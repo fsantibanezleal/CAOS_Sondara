@@ -1,0 +1,80 @@
+{
+ "schema": "drillhole.sources/v1",
+ "families": {
+  "rocklea": {
+   "license": "CC-BY-4.0",
+   "attribution": "CSIRO, Rocklea Dome 3D Mineral Mapping Test Data Set (Rocklea Dome C3DMM), doi:10.25919/5ed83bf55be6a",
+   "collection": "https://data.csiro.au/collection/csiro:44783"
+  },
+  "alberta": {
+   "license": "OGL-Alberta",
+   "attribution": "Alberta Energy Regulator / Alberta Geological Survey, DIG 2024-0022",
+   "collection": "https://ags.aer.ca/publications/all-publications/dig-2024-0022",
+   "report": "MAR_19860002"
+  },
+  "ntgs": {
+   "license": "CC-BY-4.0",
+   "attribution": "Northern Territory of Australia (Northern Territory Geological Survey)",
+   "collection": "https://geoscience.nt.gov.au/gemis/ntgsjspui/handle/1/94622",
+   "note": "bundled normalized subset of DIP043 collars and surveys and the DIP001 CR2012-1131 assay member for hole 12LE002 (NTGS 8440823)"
+  }
+ },
+ "files": [
+  {
+   "file": "Rocklea_Assay_MMX.xlsx",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857404",
+   "bytes": 1828032,
+   "sha256": "ea837d71a0feb2036926447f7638f5a18d1371ea0e150c937bfa55e410b2da6e"
+  },
+  {
+   "file": "RC_data_tsgexport.CSV",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857422",
+   "bytes": 1428944,
+   "sha256": "3db06836038139058388de9e0e6897b51a04f663c25286865e14034f868d8cff"
+  },
+  {
+   "file": "dem_plus_collars.csv",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857413",
+   "bytes": 2862387,
+   "sha256": "d4a65dc093454ed04890a71e64169cad6ed863a7d8a3113124ae7c0881b66ef5"
+  },
+  {
+   "file": "DIG_2024_0022_0.zip",
+   "family": "alberta",
+   "url": "https://static.ags.aer.ca/files/document/DIG/DIG_2024_0022_0.zip",
+   "bytes": 8623762,
+   "sha256": "ba7989acb3a433eb0514bba31305e64538ba99266e9be03b4c8d0039641af7f5"
+  },
+  {
+   "file": "ntgs-12le002-assays.csv",
+   "family": "ntgs",
+   "bundled": "data/sources/ntgs-12le002/assays.csv",
+   "bytes": 125987,
+   "sha256": "0e26cc6d8a49dafb31adee8db53555e341157ab59bf7d74c92cfc6b08660ce1c"
+  },
+  {
+   "file": "ntgs-12le002-collars.csv",
+   "family": "ntgs",
+   "bundled": "data/sources/ntgs-12le002/collars.csv",
+   "bytes": 61,
+   "sha256": "6b40ceca4a3a172eecefda992989e37f0571a1556596a892fc7276a1547f280f"
+  },
+  {
+   "file": "ntgs-12le002-surveys.csv",
+   "family": "ntgs",
+   "bundled": "data/sources/ntgs-12le002/surveys.csv",
+   "bytes": 823,
+   "sha256": "31ed2f053cbfac0f5b3991c6052a9ef0c835e0cfaa79b0c60a97ca1361efecaa"
+  },
+  {
+   "file": "ntgs-12le002-mapping.json",
+   "family": "ntgs",
+   "bundled": "data/sources/ntgs-12le002/mapping.json",
+   "bytes": 4188,
+   "sha256": "6919385557100ae55c39464d49cf3f84d2e70e8df467459532eca67f1f6e7544"
+  }
+ ]
+}
