@@ -11,7 +11,8 @@ engine is the separate [GeoCond](https://pypi.org/project/geocond/) package, con
 | `source_adapters/rocklea.py` | CSIRO Rocklea Dome: assay workbook, TSG coordinates and terrain elevations into assumed-vertical holes |
 | `source_adapters/alberta.py` | AGS DIG 2024-0022, report MAR_19860002: collars, logged geology and Cu/Zn sampling envelopes |
 | `source_adapters/ntgs.py` | NTGS 12LE002: the bundled measured-survey subset with censored results as qualifiers |
-| `stages/preprocess.py` | The preprocess stage on GeoCond: desurvey, support positions, compositing, the log overlay, gaps, repeats and the modeling populations |
+| `source_adapters/manifest_import.py` | User files through an import manifest: declared dialects, identity, frame checks, conflicts, states, controls, repeats, orphans and overlaps, committed as a transaction |
+| `stages/preprocess.py` | The preprocess stage on GeoCond: desurvey, support positions, result selection, eligibility, compositing, log overlays and fragments, gaps, repeats and the modeling populations |
 | `learned/` | Contracts, features, networks, training, evaluation and ONNX export for the learned methods (unit SD-7) |
 
 ## Setup and run

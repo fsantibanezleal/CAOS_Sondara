@@ -1,0 +1,6 @@
+HoleID,SampleID,From,To,Cu_ppm,Au_gpt
+DH1,A,0.0,2.0,100,0.1
+DH1,REV,5.0,4.0,100,0.1
+DH1,ZERO,6.0,6.0,100,0.1
+DH1,NEG,-1.0,2.0,100,0.1
+DH1,B,8.0,10.0,100,0.1

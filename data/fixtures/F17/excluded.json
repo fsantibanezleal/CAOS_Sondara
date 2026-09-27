@@ -1,0 +1,49 @@
+{
+  "schema": "drillhole.import/v1",
+  "project": {
+    "id": "f17",
+    "name": "Fixture f17"
+  },
+  "frame": {
+    "id": "site",
+    "kind": "projected-metric",
+    "horizontalCrs": "EPSG:32719"
+  },
+  "namespace": "s",
+  "files": [
+    {
+      "path": "collars.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      }
+    },
+    {
+      "path": "surveys.csv",
+      "role": "survey",
+      "columns": {
+        "hole": "HoleID",
+        "depth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid",
+        "instrument": "authored"
+      }
+    }
+  ],
+  "exclude": [
+    "s:DH1"
+  ]
+}

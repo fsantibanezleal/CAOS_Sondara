@@ -22,7 +22,7 @@ applies Sondara's declared policies to a canonical project and records every dec
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import pairwise
 
 import geocond
@@ -35,6 +35,11 @@ SCHEMA = "drillhole.preprocessed/v1"
 COMPOSITE_LENGTHS = (1.0, 2.0, 5.0)
 MIN_COVERAGE = 1.0
 MEASURED_ROLES = ("recorded-collar-direction", "measured")
+#: Mass-fraction units and their factor to ppm.
+UNIT_TO_PPM = {"ppb": 1e-3, "ppm": 1.0, "g/t": 1.0, "%": 1e4, "wt%": 1e4}
+SELECTION_RULES = {"single": "the only measured original result on the geometry",
+                   "reassay": "a measured re-assay that replaces an above-range result",
+                   "priority": "the first method in the declared priority"}
 EXTENSION = {"none": "error", "tangent": "tangent"}
 #: Source code columns the overlay reads for each named coverage.
 OVERLAY_FIELDS = {"anyLog": None, "lithoUnit": "Litho_unit", "rockType": "Rock_type"}
@@ -95,19 +100,24 @@ def build_surveys(project: dict) -> dict[str, Survey]:
 
 
 def trajectory_records(project: dict, surveys: dict[str, Survey]) -> list[dict]:
-    kinds = {t["holeId"]: t["kind"] for t in project["trajectories"]}
+    """Stations with positions, the end position, the largest dogleg and every extended depth range."""
+    policies = {t["holeId"]: t for t in project["trajectories"]}
     out = []
     for c in project["collars"]:
         survey = surveys[c["id"]]
         end_md = c["totalDepth"] if c["totalDepth"] is not None else c["observedDepthMax"]
         end = survey.at([end_md])
         doglegs = np.degrees(survey.dogleg_radians)
+        first, last = float(survey.measured_depth[0]), float(survey.measured_depth[-1])
+        extended = ([[0.0, first]] if first > 0 else []) + ([[last, float(end_md)]] if end_md > last else [])
         out.append({
-            "holeId": c["id"], "kind": kinds[c["id"]], "method": "minimum-curvature",
+            "holeId": c["id"], "kind": policies[c["id"]]["kind"], "method": "minimum-curvature",
             "stations": [{"md": float(md), "azimuth": float(az), "dip": float(dp), "position": _vec(p)}
                          for md, az, dp, p in zip(survey.measured_depth, survey.azimuth, survey.dip,
                                                   survey.station_points, strict=True)],
-            "endExtension": next(x["endExtension"] for x in project["trajectories"] if x["holeId"] == c["id"]),
+            "startExtension": policies[c["id"]]["startExtension"],
+            "endExtension": policies[c["id"]]["endExtension"],
+            "extendedRanges": extended,
             "endMd": float(end_md), "endPosition": _vec(end.points[0]),
             "endExtended": bool(end.extended[0]),
             "maxDoglegDegrees": float(doglegs.max()) if len(doglegs) else 0.0,
@@ -132,64 +142,176 @@ def support_positions(project: dict, surveys: dict[str, Survey]) -> list[dict]:
     return out
 
 
-def _values(project: dict) -> dict[str, dict[str, float]]:
-    table = defaultdict(dict)
+def convert(value: float, unit: str, target: str) -> float:
+    """Convert a mass fraction between ppb, ppm, g/t, % and wt%; any other pair must already agree."""
+    if unit == target:
+        return value
+    if unit in UNIT_TO_PPM and target in UNIT_TO_PPM:
+        return value * UNIT_TO_PPM[unit] / UNIT_TO_PPM[target]
+    raise ValueError(f"no conversion from {unit} to {target}")
+
+
+def select_results(project: dict, method_priority: dict | None = None) -> dict:
+    """One value per distinct interval geometry and analyte, chosen by a declared rule, or unresolved with a reason.
+
+    Candidates are the results of every original sample on one geometry, minus excluded results. A single measured
+    result is selected (named a re-assay when an above-range result shares the geometry); several measured results
+    are separated only by the declared method priority; repeats and duplicates are never selected and never add
+    support. Values convert to the analyte's unit.
+    """
+    priority = method_priority or {}
+    excluded = {x["rowId"] for x in project["exclusions"] if x["table"] == "determinations"}
+    intervals = {s["id"]: s for s in project["supports"] if s["kind"] == "interval"}
+    units = {a["id"]: a["unit"] for a in project["analytes"]}
+    representatives = {}
+    for s in intervals.values():
+        g = (s["holeId"], s["fromMd"], s["toMd"])
+        representatives[g] = min(representatives.get(g, s["id"]), s["id"])
+    groups = defaultdict(list)
     for d in project["determinations"]:
-        if d["qualifier"] == "=" and d["value"] is not None:
-            table[d["supportId"]][d["analyteId"]] = d["value"]
-    return table
+        s = intervals.get(d["supportId"])
+        if s is not None and d["id"] not in excluded:
+            groups[((s["holeId"], s["fromMd"], s["toMd"]), d["analyteId"])].append(d)
+    rows, unresolved = [], []
+    for (g, analyte), ds in sorted(groups.items()):
+        originals = [d for d in ds if d["sampleRole"] == "original"]
+        measured = sorted((d for d in originals if d["state"] == "measured"), key=lambda d: d["id"])
+        above = any(d["state"] == "censored-above" for d in originals)
+        chosen, rule, reason = None, None, None
+        if len(measured) == 1:
+            chosen, rule = measured[0], "reassay" if above else "single"
+        elif len(measured) > 1:
+            order = priority.get(analyte, [])
+            ranked = sorted((d for d in measured if d["method"] in order),
+                            key=lambda d: (order.index(d["method"]), d["id"]))
+            if ranked and (len(ranked) == 1 or order.index(ranked[0]["method"]) < order.index(ranked[1]["method"])):
+                chosen, rule = ranked[0], "priority"
+            else:
+                reason = "several measured results and no declared method priority that separates them"
+        else:
+            states = sorted({d["state"] for d in originals})
+            reason = f"no measured original result ({', '.join(states) or 'repeats only'})"
+        if chosen is None:
+            unresolved.append({"geometry": list(g), "analyteId": analyte, "reason": reason,
+                               "determinationIds": sorted(d["id"] for d in ds)})
+        else:
+            rows.append({"geometry": list(g), "representative": representatives[g], "analyteId": analyte,
+                         "determinationId": chosen["id"], "value": convert(chosen["value"], chosen["unit"],
+                                                                           units[analyte]),
+                         "unit": units[analyte], "rule": rule})
+    return {"rules": SELECTION_RULES, "rows": rows, "unresolved": unresolved}
 
 
-def composite_family(project: dict, surveys: dict[str, Survey], analytes: list[str]) -> dict:
-    """Fixed-length composites of every hole's known continuous intervals, with a per-hole conservation check."""
-    values = _values(project)
+def eligibility(project: dict, selection: dict) -> dict:
+    """Eligibility v1: only selected measured original values are modeled; every other result is counted."""
+    states = defaultdict(Counter)
+    for d in project["determinations"]:
+        states[d["analyteId"]][d["state"]] += 1
+    return {"version": "eligibility-v1",
+            "rule": "only a selected measured original value enters compositing and populations; censored, missing, "
+                    "not-sampled, lost-core and sentinel results, repeats and duplicates are counted, never valued",
+            "states": {a: dict(sorted(c.items())) for a, c in sorted(states.items())},
+            "selected": dict(sorted(Counter(r["analyteId"] for r in selection["rows"]).items())),
+            "unresolved": dict(sorted(Counter(r["analyteId"] for r in selection["unresolved"]).items())),
+            "excludedResults": sum(x["table"] == "determinations" for x in project["exclusions"])}
+
+
+def composite_family(project: dict, surveys: dict[str, Survey], analytes: list[str], selection: dict, *,
+                     lengths=COMPOSITE_LENGTHS, min_coverage=MIN_COVERAGE) -> dict:
+    """Fixed-length composites of the selected values on each hole's interval geometries.
+
+    Each analyte composites over the geometries that carry a selected value for it (a series never overlaps itself
+    once overlaps are excluded); all analytes share the hole's boundaries, anchored at its first selected depth. A
+    row is full only when every analyte covers it at the minimum coverage and it has the declared length.
+    """
+    values = defaultdict(dict)
+    representative = {}
+    for r in selection["rows"]:
+        g = tuple(r["geometry"])
+        values[g][r["analyteId"]] = r["value"]
+        representative[g] = r["representative"]
     by_hole = defaultdict(list)
-    for s in project["supports"]:
-        if s["kind"] == "interval":
-            by_hole[s["holeId"]].append(s)
+    for g in values:
+        by_hole[g[0]].append(g)
     rows, checks = [], {}
-    for length in COMPOSITE_LENGTHS:
+    for length in lengths:
         worst = 0.0
         for hole in sorted(by_hole):
-            supports = sorted(by_hole[hole], key=lambda s: s["fromMd"])
-            a = np.array([s["fromMd"] for s in supports])
-            b = np.array([s["toMd"] for s in supports])
-            ids = [s["id"] for s in supports]
-            edges = fixed_boundaries(float(a[0]), float(b[-1]), length, residual="keep")
-            per_analyte = {}
+            geoms = sorted(by_hole[hole], key=lambda g: (g[1], g[2]))
+            anchor, end = geoms[0][1], max(g[2] for g in geoms)
+            edges = fixed_boundaries(float(anchor), float(end), length, residual="keep")
+            per = {}
             for analyte in analytes:
-                z = np.array([values[i].get(analyte, np.nan) for i in ids])
-                per_analyte[analyte] = composite_intervals(a, b, z, edges, source_ids=ids, min_coverage=MIN_COVERAGE)
-                source = float(np.nansum((b - a) * z))
-                total = sum(c.numerator for c in per_analyte[analyte])
+                subset = [g for g in geoms if analyte in values[g]]
+                if not subset:
+                    per[analyte] = None
+                    continue
+                a = np.array([g[1] for g in subset])
+                b = np.array([g[2] for g in subset])
+                z = np.array([values[g][analyte] for g in subset])
+                per[analyte] = composite_intervals(a, b, z, edges, source_ids=[representative[g] for g in subset],
+                                                   min_coverage=min_coverage)
+                total = sum(c.numerator for c in per[analyte])
+                source = float(np.sum((b - a) * z))
                 worst = max(worst, abs(total - source) / max(1.0, abs(source)))
-            first = per_analyte[analytes[0]]
-            survey = surveys[hole]
-            mids = survey.at([(c.start + c.end) / 2 for c in first])
-            for k, c in enumerate(first):
-                estimated = all(per_analyte[x][k].status == "estimated" for x in analytes)
-                if not estimated:
-                    status = "insufficient-coverage"
-                elif c.end - c.start < length - TOLERANCE:
-                    status = "residual"
-                else:
-                    status = "full"
+            spans = list(pairwise(edges))
+            mids = surveys[hole].at([(lo + hi) / 2 for lo, hi in spans])
+            for k, (lo, hi) in enumerate(spans):
+                cells = {x: (per[x][k] if per[x] is not None else None) for x in analytes}
+                coverage = {x: (c.coverage if c else 0.0) for x, c in cells.items()}
+                valid = {x: (c.valid_length if c else 0.0) for x, c in cells.items()}
+                estimated = all(c is not None and c.status == "estimated" for c in cells.values())
+                status = ("insufficient-coverage" if not estimated
+                          else "residual" if hi - lo < length - TOLERANCE else "full")
+                parents = {}
+                for c in cells.values():
+                    for pid, overlap in (c.parents if c else ()):
+                        parents.setdefault(pid, overlap)
                 rows.append({
                     "id": f"{hole}:c{length:g}m:{k}", "holeId": hole, "length": length,
-                    "fromMd": c.start, "toMd": c.end, "status": status, "coverage": c.coverage,
-                    "validLength": c.valid_length, "missingLength": c.missing_length,
+                    "fromMd": float(lo), "toMd": float(hi), "status": status,
+                    "coverage": min(coverage.values()), "validLength": min(valid.values()),
+                    "missingLength": float(hi - lo) - min(valid.values()),
                     "mid": _vec(mids.points[k]),
-                    "values": {x: (None if np.isnan(per_analyte[x][k].mean) else per_analyte[x][k].mean)
-                               for x in analytes},
-                    "numerators": {x: per_analyte[x][k].numerator for x in analytes},
-                    "parents": [[pid, overlap] for pid, overlap in c.parents],
+                    "values": {x: (None if c is None or np.isnan(c.mean) else c.mean) for x, c in cells.items()},
+                    "numerators": {x: (c.numerator if c else 0.0) for x, c in cells.items()},
+                    "observedMeans": {x: (c.numerator / c.valid_length if c and c.valid_length > 0 else None)
+                                      for x, c in cells.items()},
+                    "coverageByAnalyte": coverage,
+                    "parents": [[pid, overlap] for pid, overlap in parents.items()],
                 })
         if worst > 1e-12:
             raise ValueError(f"compositing at {length:g} m does not conserve the grade-length integral ({worst:.3e})")
         checks[f"{length:g}m"] = worst
-    return {"lengths": list(COMPOSITE_LENGTHS), "minCoverage": MIN_COVERAGE, "residual": "keep",
-            "anchor": "first sampled depth of the hole", "analytes": analytes,
+    return {"lengths": list(lengths), "minCoverage": min_coverage, "residual": "keep",
+            "anchor": "first selected depth of the hole", "analytes": analytes,
             "conservationMaxRelativeError": checks, "rows": rows}
+
+
+def overlay_fragments(project: dict) -> dict:
+    """Cut every distinct interval geometry at the boundaries of its hole's logs; each geometry is cut once."""
+    logs = defaultdict(list)
+    for g in project["geology"]:
+        if g["kind"] == "interval":
+            logs[g["holeId"]].append(g)
+    geoms = defaultdict(lambda: defaultdict(list))
+    for s in project["supports"]:
+        if s["kind"] == "interval" and s["holeId"] in logs:
+            geoms[s["holeId"]][(s["fromMd"], s["toMd"])].append(s["id"])
+    rows, worst = [], 0.0
+    for hole in sorted(geoms):
+        columns = sorted({c for g in logs[hole] for c in g["codes"]})
+        for (a, b), ids in sorted(geoms[hole].items()):
+            cuts = sorted({a, b} | {x for g in logs[hole] for x in (g["fromMd"], g["toMd"]) if a < x < b})
+            total = 0.0
+            for lo, hi in pairwise(cuts):
+                cover = [g for g in logs[hole] if g["fromMd"] < hi - TOLERANCE and g["toMd"] > lo + TOLERANCE]
+                rows.append({"holeId": hole, "parent": [a, b], "supportIds": sorted(ids), "fromMd": lo, "toMd": hi,
+                             "logIds": [g["id"] for g in cover],
+                             "codes": {c: sorted({g["codes"].get(c) for g in cover} - UNKNOWN_CODES) for c in columns}})
+                total += hi - lo
+            worst = max(worst, abs(total - (b - a)))
+    return {"rows": rows, "parentLengthMaxError": worst}
 
 
 def _pieces(logs: list[dict], field: str) -> dict:
@@ -286,15 +408,16 @@ def _population(identifier, task, support, members, holes, rule, excluded=None):
             "rule": rule, "excluded": excluded or {}, "members": members}
 
 
-def rocklea(project, surveys):
+def rocklea(project, surveys, selection, options):
     analytes = [a["id"] for a in project["analytes"]]
-    composites = composite_family(project, surveys, analytes)
+    composites = composite_family(project, surveys, analytes, selection, lengths=options["lengths"],
+                                  min_coverage=options["minCoverage"])
     supports = [s for s in project["supports"] if s["kind"] == "interval"]
     populations = [_population(
         "rocklea-native-1m", "grade and multivariable estimation", "original 1 m interval",
         [s["id"] for s in supports], [s["holeId"] for s in supports],
         "every eligible ingested interval: unique source collar, not zero in every analyte, 11 analytes complete")]
-    for length in COMPOSITE_LENGTHS[1:]:
+    for length in options["lengths"][1:]:
         full = [r for r in composites["rows"] if r["length"] == length and r["status"] == "full"]
         other = [r for r in composites["rows"] if r["length"] == length and r["status"] != "full"]
         populations.append(_population(
@@ -303,18 +426,22 @@ def rocklea(project, surveys):
             f"full {length:g} m composites with coverage 1",
             {"residual": sum(r["status"] == "residual" for r in other),
              "insufficientCoverage": sum(r["status"] == "insufficient-coverage" for r in other)}))
-    gaps = sampling_gaps(project)
-    waterfall = []
-    for length in COMPOSITE_LENGTHS:
+    return {"composites": composites, "gaps": sampling_gaps(project), "populations": populations,
+            "waterfall": _composite_waterfall(composites)}
+
+
+def _composite_waterfall(composites):
+    out = []
+    for length in composites["lengths"]:
         rows = [r for r in composites["rows"] if r["length"] == length]
-        waterfall.append({"step": f"{length:g} m composites", "count": len(rows),
-                          "full": sum(r["status"] == "full" for r in rows),
-                          "residual": sum(r["status"] == "residual" for r in rows),
-                          "insufficientCoverage": sum(r["status"] == "insufficient-coverage" for r in rows)})
-    return {"composites": composites, "gaps": gaps, "populations": populations, "waterfall": waterfall}
+        out.append({"step": f"{length:g} m composites", "count": len(rows),
+                    "full": sum(r["status"] == "full" for r in rows),
+                    "residual": sum(r["status"] == "residual" for r in rows),
+                    "insufficientCoverage": sum(r["status"] == "insufficient-coverage" for r in rows)})
+    return out
 
 
-def alberta(project, surveys):
+def alberta(project, surveys, selection, options):
     overlay = overlay_envelopes(project)
     envelopes = [s for s in project["supports"] if s["kind"] == "sampling-envelope"]
     points = [s for s in project["supports"] if s["kind"] == "point"]
@@ -345,15 +472,21 @@ def alberta(project, surveys):
             "beyondTotalDepth": beyond}
 
 
-def ntgs(project, surveys):
-    gaps = sampling_gaps(project)
+def _repeats(project):
     groups = defaultdict(list)
     for s in project["supports"]:
-        groups[(s["fromMd"], s["toMd"])].append(s["id"])
-    repeats = [{"fromMd": a, "toMd": b, "supportIds": ids} for (a, b), ids in sorted(groups.items()) if len(ids) > 1]
+        if s["kind"] == "interval":
+            groups[(s["holeId"], s["fromMd"], s["toMd"])].append(s["id"])
+    return [{"holeId": h, "fromMd": a, "toMd": b, "supportIds": sorted(ids)}
+            for (h, a, b), ids in sorted(groups.items()) if len(ids) > 1], len(groups)
+
+
+def ntgs(project, surveys, selection, options):
+    gaps = sampling_gaps(project)
+    repeats, geometries = _repeats(project)
     censored = defaultdict(lambda: {"numeric": 0, "censored": 0})
     for d in project["determinations"]:
-        censored[d["analyteId"]]["censored" if d["qualifier"] in ("<", ">") else "numeric"] += 1
+        censored[d["analyteId"]]["censored" if d["state"].startswith("censored") else "numeric"] += 1
     supports = project["supports"]
     populations = [
         _population("ntgs-measured-desurvey", "desurvey, interval log, censoring and repeat QA", "original interval",
@@ -365,12 +498,46 @@ def ntgs(project, surveys):
     ]
     waterfall = [
         {"step": "supports", "count": len(supports)},
-        {"step": "distinct interval geometries", "count": len(groups)},
+        {"step": "distinct interval geometries", "count": geometries},
         {"step": "sampling gaps", "count": len(gaps)},
         {"step": "repeated supports", "count": len(repeats)},
     ]
     return {"gaps": gaps, "repeats": repeats, "censoring": dict(sorted(censored.items())),
             "populations": populations, "waterfall": waterfall}
+
+
+def imported(project, surveys, selection, options):
+    """A user import: composites per analyte, overlay fragments, gaps, repeats and per-analyte populations."""
+    analytes = sorted({r["analyteId"] for r in selection["rows"]})
+    composites = (composite_family(project, surveys, analytes, selection, lengths=options["lengths"],
+                                   min_coverage=options["minCoverage"]) if analytes else None)
+    repeats, geometries = _repeats(project)
+    populations = []
+    for analyte in analytes:
+        native = [r for r in selection["rows"] if r["analyteId"] == analyte]
+        populations.append(_population(
+            f"{project['id']}-{analyte}-native", "estimation", "original interval",
+            sorted({r["representative"] for r in native}), [r["geometry"][0] for r in native],
+            f"every interval geometry with a selected measured {analyte} value"))
+        for length in options["lengths"]:
+            rows = [r for r in composites["rows"] if r["length"] == length]
+            full = [r for r in rows if r["values"][analyte] is not None and r["toMd"] - r["fromMd"] >= length - TOLERANCE]
+            populations.append(_population(
+                f"{project['id']}-{analyte}-{length:g}m", "estimation", f"{length:g} m composite",
+                [r["id"] for r in full], [r["holeId"] for r in full],
+                f"{length:g} m composites whose {analyte} coverage meets {options['minCoverage']:g}",
+                {"notCovered": sum(r["values"][analyte] is None for r in rows),
+                 "residual": sum(r["values"][analyte] is not None and r["toMd"] - r["fromMd"] < length - TOLERANCE
+                                 for r in rows)}))
+    waterfall = [{"step": "samples", "count": len(project["supports"])},
+                 {"step": "distinct interval geometries", "count": geometries},
+                 {"step": "selected values", "count": len(selection["rows"])},
+                 {"step": "unresolved selections", "count": len(selection["unresolved"])}]
+    out = {"gaps": sampling_gaps(project), "repeats": repeats, "fragments": overlay_fragments(project),
+           "populations": populations, "waterfall": waterfall + (_composite_waterfall(composites) if composites else [])}
+    if composites:
+        out["composites"] = composites
+    return out
 
 
 def _total_depth(project, hole):
@@ -381,14 +548,21 @@ def _total_depth(project, hole):
 FAMILIES = {"rocklea": rocklea, "alberta": alberta, "ntgs": ntgs}
 
 
-def preprocess(family: str, project: dict, project_sha256: str) -> dict:
+def preprocess(family: str, project: dict, project_sha256: str, options: dict | None = None) -> dict:
+    """Run the stage. ``options``: compositing ``lengths`` and ``minCoverage``, and ``methodPriority`` per analyte."""
+    options = {"lengths": list(COMPOSITE_LENGTHS), "minCoverage": MIN_COVERAGE, "methodPriority": {},
+               **(options or {})}
     surveys = build_surveys(project)
-    result = FAMILIES[family](project, surveys)
+    selection = select_results(project, options["methodPriority"])
+    result = FAMILIES.get(family, imported)(project, surveys, selection, options)
+    recipe = {**RECIPE, "options": {k: options[k] for k in ("lengths", "minCoverage", "methodPriority")}}
     return {
         "schema": SCHEMA, "family": family, "projectId": project["id"], "inputProjectSha256": project_sha256,
-        "recipe": RECIPE, "recipeSha256": stable_hash(RECIPE), "engine": {"geocond": geocond.__version__},
+        "recipe": recipe, "recipeSha256": stable_hash(recipe), "engine": {"geocond": geocond.__version__},
         "frameId": project["frames"][0]["id"],
         "trajectories": trajectory_records(project, surveys),
         "positions": support_positions(project, surveys),
+        "selections": selection,
+        "eligibility": eligibility(project, selection),
         **result,
     }

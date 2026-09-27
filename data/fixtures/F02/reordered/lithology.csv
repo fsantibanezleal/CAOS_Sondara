@@ -1,0 +1,7 @@
+HoleID,From,To,Lith,Description
+DH3,0.0,10.0,OX,oxidised
+DH1,0.0,10.0,OX,oxidised
+DH2,10.0,30.0,FR,fresh
+DH2,0.0,10.0,OX,oxidised
+DH1,10.0,30.0,FR,fresh
+DH3,10.0,30.0,FR,fresh

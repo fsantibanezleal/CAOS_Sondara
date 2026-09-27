@@ -1,7 +1,7 @@
 {
   "name": "sondara-frontend",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "predev": "node copy-data.mjs",
