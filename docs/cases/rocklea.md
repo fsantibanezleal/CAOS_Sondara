@@ -38,6 +38,34 @@ LOI. The row identities are pinned by a hash, so a change in the source or the r
 - **The TSG export is a separate source.** Its assay-like columns are not treated as new assays; it contributes
   coordinates only.
 
+## Preprocessing
+
+Each hole is desurveyed by GeoCond as a one-station survey pointing straight down from its collar, so every position
+keeps the collar's easting and northing and drops by the measured depth; the output flags every position as an
+extension of that assumed direction. The 5,035 intervals then composite per hole, on boundaries anchored at the hole's
+first sampled depth:
+
+| Length | Full composites | Residuals | Touching a gap (no mean) |
+|---|---:|---:|---:|
+| 1 m | 5,035 | 0 | 12 |
+| 2 m | 2,469 | 85 | 12 |
+| 5 m | 937 | 117 | 12 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/preprocess-rocklea-composites-dark.svg">
+  <img alt="Stacked bars of full, residual and gap-touching composites at 1, 2 and 5 m for the 158 Rocklea holes." src="../assets/preprocess-rocklea-composites-light.svg" width="820">
+</picture>
+
+- **The 1 m composites reproduce the native intervals exactly.** Each has one parent with a full metre of overlap and
+  the parent's eleven values, which checks the compositing chain end to end.
+- **The twelve gaps are single metres** in eleven holes; the composites that touch them keep their numerator and
+  valid length and have no mean, so no gap is bridged at any length.
+- **Conservation.** The grade-length integral of every analyte is conserved per hole at every length (largest relative
+  error 6.4e-16).
+- **Populations.** Three uniform-support populations for the grade and multivariable scenarios: the 5,035 native
+  intervals, the 2,469 full 2 m composites and the 937 full 5 m composites, each on all 158 holes. Residuals and
+  gap-touching composites are counted as excluded, not dropped silently.
+
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158

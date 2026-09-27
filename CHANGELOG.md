@@ -4,6 +4,32 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.04.000], 2026-09-26
+
+### Added
+- The `preprocess` stage (units SD-2 and SD-3 of the plan, delivered together because the stage is shared), on
+  GeoCond 0.6.1:
+  - Every hole desurveyed by minimum curvature from what its source supports (assumed vertical, recorded collar
+    direction, or the recorded collar direction and the measured stations), with a declared tangent extension to total
+    depth; every support positioned on the arc.
+  - Rocklea composites at 1, 2 and 5 m per hole, anchored at the first sampled depth, with minimum coverage 1 and
+    labelled residuals: 5,035, 2,469 and 937 full composites; the 1 m composites reproduce the native intervals
+    exactly and every grade-length integral is conserved per hole.
+  - The Alberta log overlay, reproducing the research audit: 173, 51 and 36 of 176 envelopes fully covered by any log,
+    a known `Litho_unit` and a known `Rock_type` (1,960.1, 285.6 and 207.4 m covered).
+  - NTGS 12LE002: largest dogleg 1.5014 degrees and a 9.57 m departure from the collar direction, as in the audit; 50
+    sampling gaps, 3 repeated supports and the censoring table.
+  - Modeling populations with members, support, rule and excluded counts, including the empty NTGS estimation
+    population and its reason.
+- `scripts/check_artifacts.py` validates the preprocessed output against its project; tests cover authored cases with
+  exact answers, the three families against the dossier gates and each rejected corruption.
+- `scripts/figures/preprocess_figures.py` and three figures in `docs/assets/`; a preprocessing section on each case
+  page; the GeoCond framework card.
+- The MIT `LICENSE` the product lacked.
+
+### Changed
+- The README describes the current release and how to run the pipeline.
+
 ## [0.03.000], 2026-09-26
 
 ### Added
