@@ -106,3 +106,69 @@ R-532  THE infer stage SHALL predict every test target of every fitted populatio
        and SGS, recording a status and reason for each, and the artifact check SHALL fail when a method is missing.
        Gate: tests/test_infer.py::test_every_method_predicts_every_test_target
 ```
+
+## Evaluation and the scenario matrix (0.09.000)
+
+The SGS reproduction check of R-544 found that the residual, LMC, indicator and Gaussian-space covariances had
+been fitted isotropically on omnidirectional lags of half the collar spacing, which cannot see the vertical
+continuity of 1 m samples: on Rocklea the realizations' downhole semivariance at 1 m was 223 against 56 for the test
+truths. Forcing ordinary kriging's structure on the normal scores then cut the correlation between holes (E-type RMSE
+18.2 wt%), and a single search of data and simulated nodes let the nodes crowd the data out. R-533 to R-535 fix the
+three rules; the experiments are in the management repository (wip/drillhole-workbench/sgs-two-part-search-2026-09-27.md).
+
+```
+R-533  THE residual, LMC and indicator covariances SHALL be fitted with the families and in the frame selected for
+       ordinary kriging, on the four horizontal and the vertical variograms of their own training values when the
+       selection is anisotropic, and on the omnidirectional one when it is isotropic.
+       Gate: tests/test_train.py::test_other_covariances_follow_the_selected_structure
+
+R-534  THE Gaussian-space covariance SHALL be selected among anisotropic candidates in every declared frame and family
+       set, fitted on the four horizontal and the vertical variograms of the training normal scores, by the lowest
+       validation RMSE of simple kriging of the normal scores among candidates covering at least 90 % of the
+       validation targets, and every candidate SHALL be recorded.
+       Gate: tests/test_train.py::test_the_gaussian_covariance_is_selected_on_validation
+
+R-535  SGS SHALL search the original data and the nodes already simulated apart: the data by the shared plan with its
+       per-hole cap, and at most the declared number of simulated nodes (12).
+       Gate: tests/test_infer.py::test_sgs_searches_data_and_simulated_nodes_apart
+
+R-540  THE evaluate stage SHALL score every continuous method on its own predicted test targets and on the common
+       targets every continuous method predicted, and bias, MAE, RMSE, the length-weighted scores and the hole-macro
+       RMSE SHALL equal a direct computation from the predictions and the test truths.
+       Gate: tests/test_evaluate.py::test_scores_equal_a_direct_computation
+
+R-541  EVERY comparison with ordinary kriging SHALL be paired on the targets both methods predicted, with a 95 %
+       interval from a bootstrap that resamples holes, reproducible from its recorded seed.
+       Gate: tests/test_evaluate.py::test_paired_hole_block_bootstrap
+
+R-542  THE kriging variance scale SHALL be estimated on the calibration holes only and applied to the test rows, so
+       changing a test truth SHALL NOT change it.
+       Gate: tests/test_evaluate.py::test_calibration_uses_calibration_holes_only
+
+R-543  MIK SHALL be scored per threshold with the Brier and log scores against the constant training proportion,
+       with the log floor recorded, so a forecast equal to that proportion has zero skill.
+       Gate: tests/test_evaluate.py::test_indicator_scores_against_the_training_proportion
+
+R-544  SGS SHALL be scored with the fair CRPS of its realizations (unbiased for a finite ensemble), the coverage of
+       its 80 % interval, their convergence at 8, 16 and 32 realizations, and the reproduction of the test truths'
+       histogram and downhole variogram beside ordinary kriging's estimates.
+       Gate: tests/test_evaluate.py::test_sgs_fair_crps_and_reproduction
+
+R-545  THE infer stage SHALL predict the declared variant population with the small and large neighbourhoods, the
+       best isotropic model, interval-integrated supports and the sparse primary, on the same test targets, and
+       evaluate SHALL score each against ordinary kriging.
+       Gate: tests/test_evaluate.py::test_variants_are_computed_and_scored
+
+R-546  THE scenario matrix SHALL list every registered scenario, and every cell SHALL be computed from metrics it
+       cites by hash, verified by a test that exists, or pending with the unit that owns it; the artifact check SHALL
+       fail on a missing cell, an ownerless pending cell or a cell citing stale metrics.
+       Gate: tests/test_evaluate.py::test_scenario_matrix_accounts_for_every_cell
+
+R-547  IF metrics do not match the predictions they record, or a method is not scored, THEN THE artifact check SHALL
+       fail and name it.
+       Gate: tests/test_evaluate.py::test_the_contract_check_rejects_stale_metrics
+
+R-548  THE metrics SHALL carry a receipt with the split seeds, the plan, the engine versions of fit, infer and
+       evaluate, the hashes of the dataset, models and predictions, and the hash of the scored result.
+       Gate: tests/test_evaluate.py::test_receipt_records_seeds_plan_engines_and_hashes
+```

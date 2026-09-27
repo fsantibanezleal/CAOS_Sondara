@@ -233,3 +233,24 @@ def test_every_method_predicts_every_test_target(tmp_path):
     del broken["schemes"][0]["populations"][0]["methods"]["sequential-gaussian"]
     models = json.loads((folder / "models.json").read_text(encoding="utf-8"))
     assert any("missing" in e for e in contract.check_predictions(broken, models))
+
+
+def test_sgs_searches_data_and_simulated_nodes_apart():
+    from geocond import Neighborhood, NormalScoreTransform, sequential_gaussian
+    from stages.estimators import estimate, observations, targets
+
+    rng = np.random.default_rng(12)
+    rows = [{"id": f"o{h}-{k}", "hole": f"h{h}", "xyz": [40.0 * (h % 3), 40.0 * (h // 3), -float(k)],
+             "values": {"z": float(rng.normal())}} for h in range(6) for k in range(10)]
+    line = _targets(np.c_[np.full(20, 20.0), np.full(20, 20.0), -np.arange(20.0), np.zeros(20)])
+    transform = NormalScoreTransform.fit([r["values"]["z"] for r in rows])
+    plan = _plan(max_samples=8, min_samples=2, max_per_hole=2, simulated_nodes=5, realizations=6, seed=9)
+    assert plan.record()["simulatedNodes"] == 5
+    out = estimate("sequential-gaussian", rows, line, "z", plan, model=_model(ranges=30.0), transform=transform)
+    assert out["extra"]["search"] == "two-part" and out["extra"]["perHoleCap"] == 2
+    assert out["extra"]["simulatedNodes"] == 5
+    direct = sequential_gaussian(observations(rows, ["z"]), targets(line), _model(ranges=30.0), transform,
+                                 realizations=6, seed=9,
+                                 neighborhood=Neighborhood(max_samples=8, min_samples=2, max_per_group=2),
+                                 node_neighborhood=Neighborhood(max_samples=5))
+    assert np.allclose([r["realizations"] for r in out["rows"]], direct.native.T, rtol=0, atol=1e-9)

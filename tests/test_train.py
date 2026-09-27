@@ -89,3 +89,92 @@ def test_models_round_trip(trained):
     record = data["features"]["schemes"][0]["populations"][0]["analytes"]["Cu"]["variograms"][1]
     rebuilt = variogram_from(record)
     assert rebuilt.counts.tolist() == record["counts"] and list(rebuilt.edges) == record["edges"]
+
+
+def test_other_covariances_follow_the_selected_structure(trained):
+    from geocond import fit_variogram, principal_frame
+    from stages import train
+    from stages.features import variograms
+    from stages.models import model_from, variogram_from
+
+    _, data = trained
+    checked = 0
+    for scheme, fscheme in zip(data["models"]["schemes"], data["features"]["schemes"], strict=True):
+        split = next(s for s in data["dataset"]["schemes"] if s["id"] == scheme["scheme"])
+        for p, fp in zip(scheme["populations"], fscheme["populations"], strict=True):
+            selected = p["selected"]
+            frame = None if selected["kind"] == "isotropic" else principal_frame(selected["frameAzimuth"], 0.0, 0.0)
+            names = ["omni"] if frame is None else list(train.DIRECTIONAL)
+            assert p["structure"]["families"] == selected["families"] and p["structure"]["variograms"] == names
+            models = [(p["universal"]["model"], selected["families"]), (p["lmc"]["model"], selected["families"])]
+            models += [(t["model"], ["spherical"]) for t in p["indicator"]["thresholds"] if t["status"] == "fitted"]
+            for record, families in models:
+                model = model_from(record)
+                assert [c.family for c in model.components] == families
+                for c in model.components:
+                    if frame is None:
+                        assert len(set(np.round(c.ranges, 9))) == 1  # isotropic
+                    else:
+                        assert np.allclose(c.rotation, frame)
+            # An indicator model is the fit of the indicators' own variograms, defined as the features stage defines
+            # the direct ones, in the selected frame.
+            population = next(x for x in data["preprocessed"]["populations"] if x["id"] == p["population"])
+            split_rows = train._split_rows(data["project"], data["preprocessed"], split, population)["train"]
+            rows = [r for r in split_rows if p["analyte"] in r["values"]]
+            first = next(t for t in p["indicator"]["thresholds"] if t["status"] == "fitted")
+            indicator = [float(r["values"][p["analyte"]] <= first["threshold"]) for r in rows]
+            pseudo = [{**r, "values": {"v": v}} for r, v in zip(rows, indicator, strict=True)]
+            by_name = {v["name"]: v for v in variograms(pseudo, "v", fscheme["collarSpacing"], fp["supportLength"])}
+            used = [variogram_from(by_name[n]) for n in names]
+            fit = (fit_variogram(used, ("spherical",), isotropic=True) if frame is None
+                   else fit_variogram(used, ("spherical",), rotation=frame))
+            assert np.allclose(first["model"]["nugget"], fit.model.nugget, rtol=1e-12, atol=0)
+            assert model_from(first["model"]).components[0].ranges == pytest.approx(fit.model.components[0].ranges,
+                                                                                    rel=1e-12)
+            checked += 1
+    assert checked
+    # An anisotropic selection fits on the four horizontal and the vertical variograms, in its own frame.
+    structure = train.Structure({"kind": "anisotropic", "frameAzimuth": 45.0, "families": ["spherical"]}, 50.0, 2.0)
+    assert structure.names == train.DIRECTIONAL and np.allclose(structure.rotation, principal_frame(45.0, 0.0, 0.0))
+
+
+def test_the_gaussian_covariance_is_selected_on_validation(trained):
+    from geocond import fit_variogram, principal_frame
+    from stages import train
+    from stages.estimators import estimate
+    from stages.models import model_from, transform_from
+
+    _, data = trained
+    checked = 0
+    for scheme, fscheme in zip(data["models"]["schemes"], data["features"]["schemes"], strict=True):
+        split = next(s for s in data["dataset"]["schemes"] if s["id"] == scheme["scheme"])
+        for p, fp in zip(scheme["populations"], fscheme["populations"], strict=True):
+            g = p["gaussian"]
+            candidates = g["candidates"]
+            assert [(c["frameAzimuth"], c["families"]) for c in candidates] == [
+                (f, list(fams)) for f in train.FRAMES for fams in train.FAMILY_SETS]  # every declared candidate
+            assert all(c["kind"] == "anisotropic" for c in candidates)
+            admissible = [c for c in candidates if c["status"] == "fitted" and c["validationCoverage"] >= 0.9]
+            best = min(admissible, key=lambda c: (c["validationRmse"], c["objective"]))
+            assert g["model"] == best["model"] and g["selected"]["validationRmse"] == best["validationRmse"]
+            # Recompute the chosen candidate: its fit on the normal scores' variograms and its validation RMSE.
+            population = next(x for x in data["preprocessed"]["populations"] if x["id"] == p["population"])
+            rows = train._split_rows(data["project"], data["preprocessed"], split, population)
+            transform = transform_from(g["transform"])
+            train_rows = [r for r in rows["train"] if p["analyte"] in r["values"]]
+            held = [r for r in rows["validation"] if p["analyte"] in r["values"]]
+            y = transform.forward(np.array([r["values"][p["analyte"]] for r in train_rows]))
+            structure = train.Structure({"kind": "anisotropic", "frameAzimuth": best["frameAzimuth"],
+                                         "families": best["families"]}, fscheme["collarSpacing"], fp["supportLength"])
+            used = structure.variograms_of(train_rows, y)
+            fit = fit_variogram(used, best["families"], rotation=principal_frame(best["frameAzimuth"], 0.0, 0.0))
+            assert model_from(g["model"]).components[0].ranges == pytest.approx(fit.model.components[0].ranges,
+                                                                                rel=1e-12)
+            scored = [{**r, "values": {"y": float(v)}} for r, v in zip(train_rows, y, strict=True)]
+            truth = transform.forward(np.array([r["values"][p["analyte"]] for r in held]))
+            check = [{**r, "values": {"y": float(v)}} for r, v in zip(held, truth, strict=True)]
+            out = estimate("simple-kriging", scored, check, "y", train.PLAN, model=fit.model, mean=0.0)["rows"]
+            errors = [r["mean"] - v for r, v in zip(out, truth, strict=True) if r["status"] == "estimated"]
+            assert best["validationRmse"] == pytest.approx(float(np.sqrt(np.mean(np.square(errors)))), rel=1e-12)
+            checked += 1
+    assert checked
