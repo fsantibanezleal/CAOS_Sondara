@@ -28,33 +28,42 @@ def _contract():
 
 def _authored():
     """Three holes, one of each trajectory kind, with a gap, a residual and a conflicting log overlap."""
-    from source_adapters.common import determination, project, support
+    from source_adapters.common import (
+        collar,
+        determination,
+        frame,
+        localized,
+        project,
+        support,
+        survey,
+        trajectory,
+    )
 
-    p = project("authored", "authored", [], "authored test project", {"id": "local", "kind": "local-metric"})
-    p["collars"] = [
-        {"id": "V", "frameId": "local", "x": 10.0, "y": 20.0, "z": 500.0, "totalDepth": 6.0, "observedDepthMax": 6.0},
-        {"id": "C", "frameId": "local", "x": 0.0, "y": 0.0, "z": 0.0, "totalDepth": 50.0, "observedDepthMax": None},
-        {"id": "M", "frameId": "local", "x": 0.0, "y": 0.0, "z": 0.0, "totalDepth": 120.0, "observedDepthMax": None},
-    ]
-    p["trajectories"] = [{"holeId": "V", "kind": "assumed-vertical"}, {"holeId": "C", "kind": "collar-orientation"},
-                         {"holeId": "M", "kind": "measured-stations"}]
-    p["surveys"] = [
-        {"holeId": "C", "md": 0.0, "azimuth": 90.0, "dip": -45.0, "role": "recorded-collar-direction"},
-        {"holeId": "M", "md": 0.0, "azimuth": 0.0, "dip": 0.0, "role": "recorded-collar-direction"},
-        {"holeId": "M", "md": 100.0, "azimuth": 0.0, "dip": -90.0, "role": "measured-single-shot"},
-    ]
-    p["analytes"] = [{"id": "Cu", "unit": "ppm"}]
+    p = project("authored", localized("authored"), [], "authored test project", frame("local", "local-metric"),
+                kind="authored-validation")
+    p["collars"] = [collar("V", "t", "V", "local", 10.0, 20.0, 500.0, [], total_depth=6.0, observed_depth=6.0),
+                    collar("C", "t", "C", "local", 0.0, 0.0, 0.0, [], total_depth=50.0),
+                    collar("M", "t", "M", "local", 0.0, 0.0, 0.0, [], total_depth=120.0)]
+    p["trajectories"] = [trajectory("V", "assumed-vertical", []), trajectory("C", "collar-orientation", []),
+                         trajectory("M", "measured-stations", [])]
+    p["surveys"] = [survey("s1", "C", 0.0, 90.0, -45.0, "recorded-collar-direction", []),
+                    survey("s2", "M", 0.0, 0.0, 0.0, "recorded-collar-direction", []),
+                    survey("s3", "M", 100.0, 0.0, -90.0, "measured", []),
+                    survey("s4", "M", 110.0, 45.0, -10.0, "compiled-extension", [])]  # never a station
+    p["analytes"] = [{"id": "Cu", "name": localized("Cu"), "unit": "ppm", "quantity": "authored", "sourceRefs": []}]
     for sid, a, b, z in (("v1", 0, 1, 2.0), ("v2", 1, 3, 5.0), ("v3", 4, 6, 3.0)):
-        p["supports"].append(support(sid, "V", float(a), float(b), [], "authored"))
-        p["determinations"].append(determination(f"{sid}:Cu", sid, "Cu", z, z, "ppm", [], qualifier="="))
+        p["supports"].append(support(sid, "V", float(a), float(b), [], "authored", sample=sid))
+        p["determinations"].append(determination(f"{sid}:Cu", sid, "Cu", z, z, "ppm", []))
     p["supports"].append(support("e1", "C", 10.0, 20.0, [], "authored envelope", unknown_weights=True))
     p["supports"].append(support("p1", "C", 30.0, 30.0, [], "authored point"))
     p["supports"].append(support("m1", "M", 50.0, 60.0, [], "authored"))
-    p["geology"] = [
-        {"id": "g1", "holeId": "C", "kind": "interval", "fromMd": 8.0, "toMd": 15.0, "rockType": "A", "lithoUnit": "a"},
-        {"id": "g2", "holeId": "C", "kind": "interval", "fromMd": 14.0, "toMd": 18.0, "rockType": "B",
-         "lithoUnit": "-9999"},
-    ]
+
+    def log(identifier, a, b, rock, litho):
+        return {"id": identifier, "holeId": "C", "kind": "interval", "fromMd": a, "toMd": b, "atMd": None,
+                "codes": {"Rock_type": rock, "Litho_unit": litho}, "description": None, "mappedCode": None,
+                "mappingVersion": None, "sourceRefs": []}
+
+    p["geology"] = [log("g1", 8.0, 15.0, "A", "a"), log("g2", 14.0, 18.0, "B", "-9999")]
     return p
 
 
@@ -102,12 +111,15 @@ def test_authored_overlay_flags_conflicts_and_unknown_codes():
     assert [(c["field"], c["codes"]) for c in overlay["conflicts"]] == [("rockType", ["A", "B"])]
 
 
-def test_measured_stations_need_the_collar_direction():
+def test_stations_below_the_collar_need_a_declared_start_extension():
     stage = _stage()
     p = _authored()
     p["surveys"] = [s for s in p["surveys"] if not (s["holeId"] == "M" and s["md"] == 0.0)]
-    with pytest.raises(ValueError, match="recorded collar direction"):
+    with pytest.raises(ValueError, match="no start extension is declared"):
         stage.build_surveys(p)
+    next(t for t in p["trajectories"] if t["holeId"] == "M")["startExtension"] = "tangent"
+    survey = stage.build_surveys(p)["M"]
+    assert np.allclose(survey.at([40.0]).points[0], [0.0, 0.0, -40.0], atol=1e-12)  # first tangent, straight down
 
 
 def _pre(family, tmp_path):
@@ -219,3 +231,16 @@ def test_the_contract_check_rejects_each_preprocess_corruption(tmp_path):
     assert contract.check_preprocessed(rocklike, authored) == []
     rocklike["composites"]["rows"][0]["numerators"]["Cu"] += 1.0
     assert any("conserve" in e for e in contract.check_preprocessed(rocklike, authored))
+
+
+def test_preprocess_refuses_a_changed_project(tmp_path):
+    import run
+
+    run.ingest("ntgs", RAW, tmp_path)
+    path = tmp_path / "ntgs" / "project.json"
+    project = json.loads(path.read_text(encoding="utf-8"))
+    project["collars"][0]["z"] = 1.0
+    path.write_text(json.dumps(project), encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match its ingest summary"):
+        run.preprocess("ntgs", tmp_path)
+    assert not (tmp_path / "ntgs" / "preprocessed.json").exists()

@@ -1,187 +1,122 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://sondara.ml.fasl-work.com/schemas/project.schema.json",
-  "title": "Drillhole project v1",
+  "title": "Drillhole project v2",
+  "description": "The canonical project every Sondara ingest writes: source adapters and the manifest importer alike. Referential rules (every record on a known collar, every determination on a known support and analyte, censoring kept as a qualifier) are enforced by scripts/check_artifacts.py on top of this schema.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema",
-    "id",
-    "name",
-    "provenance",
-    "frames",
-    "collars",
-    "surveys",
-    "trajectories",
-    "analytes",
-    "supports",
-    "determinations",
-    "geology",
-    "issues"
-  ],
-  "properties": {
-    "schema": {
-      "const": "drillhole.project/v1"
-    },
-    "id": {
-      "type": "string"
-    },
-    "name": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "en",
-        "es"
-      ],
-      "properties": {
-        "en": {
-          "type": "string"
-        },
-        "es": {
-          "type": "string"
-        }
+  "required": ["schema", "id", "name", "provenance", "frames", "collars", "surveys", "trajectories", "analytes",
+               "supports", "determinations", "geology", "qc", "exclusions", "issues", "waterfall"],
+  "$defs": {
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceId", "rowId"],
+        "properties": {"sourceId": {"type": "string"}, "rowId": {"type": "string"}}
       }
     },
+    "localized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["en", "es"],
+      "properties": {"en": {"type": "string"}, "es": {"type": "string"}}
+    },
+    "azimuthReference": {"enum": ["true", "grid", "magnetic", "unknown"]},
+    "nullableNumber": {"type": ["number", "null"]},
+    "nullableString": {"type": ["string", "null"]},
+    "determination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "supportId", "analyteId", "value", "rawValue", "qualifier", "state", "detectionLimit", "unit",
+                   "method", "lab", "sampleRole", "sourceRefs"],
+      "properties": {
+        "id": {"type": "string"},
+        "supportId": {"$ref": "#/$defs/nullableString"},
+        "analyteId": {"type": "string"},
+        "value": {"$ref": "#/$defs/nullableNumber"},
+        "rawValue": {"type": "string"},
+        "qualifier": {"enum": ["=", "<", ">", null]},
+        "state": {"enum": ["measured", "censored-below", "censored-above", "missing", "not-sampled", "lost-core",
+                           "sentinel"]},
+        "detectionLimit": {"$ref": "#/$defs/nullableNumber"},
+        "unit": {"type": "string"},
+        "method": {"$ref": "#/$defs/nullableString"},
+        "lab": {"$ref": "#/$defs/nullableString"},
+        "sampleRole": {"enum": ["original", "repeat", "duplicate"]},
+        "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
+      }
+    }
+  },
+  "properties": {
+    "schema": {"const": "drillhole.project/v2"},
+    "id": {"type": "string", "minLength": 1},
+    "name": {"$ref": "#/$defs/localized"},
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "sources",
-        "recipe",
-        "recipeSha256"
-      ],
+      "required": ["kind", "sources", "recipe", "recipeSha256"],
       "properties": {
-        "kind": {
-          "enum": [
-            "field",
-            "authored-validation"
-          ]
-        },
+        "kind": {"enum": ["field", "user-import", "authored-validation"]},
         "sources": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "id",
-              "url",
-              "license",
-              "attribution",
-              "sha256",
-              "format",
-              "encoding"
-            ],
+            "required": ["id", "url", "license", "attribution", "sha256", "format", "encoding"],
             "properties": {
-              "id": {
-                "type": "string"
-              },
-              "url": {
-                "type": "string"
-              },
-              "license": {
-                "type": "string"
-              },
-              "attribution": {
-                "type": "string"
-              },
-              "sha256": {
-                "type": "string",
-                "pattern": "^[a-f0-9]{64}$"
-              },
-              "format": {
-                "type": "string"
-              },
-              "encoding": {
-                "type": "string"
-              }
+              "id": {"type": "string"},
+              "url": {"$ref": "#/$defs/nullableString"},
+              "license": {"$ref": "#/$defs/nullableString"},
+              "attribution": {"$ref": "#/$defs/nullableString"},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "format": {"type": "string"},
+              "encoding": {"type": "string"}
             }
           }
         },
-        "recipe": {
-          "type": "string"
-        },
-        "recipeSha256": {
-          "type": "string"
-        }
+        "recipe": {"type": "string"},
+        "recipeSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
       }
     },
     "frames": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "kind",
-          "unit",
-          "horizontalCrs",
-          "verticalDatum",
-          "origin",
-          "assumptions"
-        ],
+        "required": ["id", "kind", "unit", "horizontalCrs", "horizontalDefinition", "verticalDatum", "origin",
+                     "assumptions"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "projected",
-              "local-metric"
-            ]
-          },
-          "unit": {
-            "const": "m"
-          },
-          "horizontalCrs": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "verticalDatum": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
+          "id": {"type": "string"},
+          "kind": {"enum": ["projected-metric", "local-metric"]},
+          "unit": {"const": "m"},
+          "horizontalCrs": {"$ref": "#/$defs/nullableString"},
+          "horizontalDefinition": {"$ref": "#/$defs/nullableString"},
+          "verticalDatum": {"$ref": "#/$defs/nullableString"},
           "origin": {
             "anyOf": [
-              {
-                "type": "null"
-              },
+              {"type": "null"},
               {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "x",
-                  "y",
-                  "z",
-                  "frameId"
-                ],
+                "required": ["sourceProjected", "sourceHorizontalCrs", "longitude", "latitude"],
                 "properties": {
-                  "x": {
-                    "type": "number"
+                  "sourceProjected": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["x", "y", "z"],
+                    "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}
                   },
-                  "y": {
-                    "type": "number"
-                  },
-                  "z": {
-                    "type": "number"
-                  },
-                  "frameId": {
-                    "type": "string"
-                  }
+                  "sourceHorizontalCrs": {"type": "string"},
+                  "longitude": {"$ref": "#/$defs/nullableNumber"},
+                  "latitude": {"$ref": "#/$defs/nullableNumber"}
                 }
               }
             ]
           },
-          "assumptions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
+          "assumptions": {"type": "array", "items": {"type": "string"}}
         }
       }
     },
@@ -190,97 +125,35 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "sourceHoleId",
-          "frameId",
-          "x",
-          "y",
-          "z",
-          "totalDepth",
-          "observedDepthMax",
-          "orientation",
-          "sourceRefs"
-        ],
+        "required": ["id", "sourceHoleId", "namespace", "frameId", "x", "y", "z", "totalDepth", "observedDepthMax",
+                     "orientation", "sourceRefs"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "sourceHoleId": {
-            "type": "string"
-          },
-          "frameId": {
-            "type": "string"
-          },
-          "x": {
-            "type": "number"
-          },
-          "y": {
-            "type": "number"
-          },
-          "z": {
-            "type": "number"
-          },
-          "totalDepth": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "observedDepthMax": {
-            "type": "number"
-          },
+          "id": {"type": "string"},
+          "sourceHoleId": {"type": "string"},
+          "namespace": {"type": "string"},
+          "frameId": {"type": "string"},
+          "x": {"type": "number"},
+          "y": {"type": "number"},
+          "z": {"type": "number"},
+          "totalDepth": {"$ref": "#/$defs/nullableNumber"},
+          "observedDepthMax": {"$ref": "#/$defs/nullableNumber"},
           "orientation": {
             "anyOf": [
-              {
-                "type": "null"
-              },
+              {"type": "null"},
               {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "azimuth",
-                  "dip",
-                  "azimuthReference"
-                ],
+                "required": ["azimuth", "dip", "azimuthReference", "sourceInclination"],
                 "properties": {
-                  "azimuth": {
-                    "type": "number"
-                  },
-                  "dip": {
-                    "type": "number"
-                  },
-                  "azimuthReference": {
-                    "enum": [
-                      "true",
-                      "grid",
-                      "magnetic",
-                      "unknown"
-                    ]
-                  }
+                  "azimuth": {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+                  "dip": {"type": "number", "minimum": -90, "maximum": 90},
+                  "azimuthReference": {"$ref": "#/$defs/azimuthReference"},
+                  "sourceInclination": {"$ref": "#/$defs/nullableNumber"}
                 }
               }
             ]
           },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
       }
     },
@@ -289,74 +162,17 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "holeId",
-          "md",
-          "azimuth",
-          "dip",
-          "azimuthReference",
-          "role",
-          "instrument",
-          "sourceRefs"
-        ],
+        "required": ["id", "holeId", "md", "azimuth", "dip", "azimuthReference", "role", "instrument", "sourceRefs"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "holeId": {
-            "type": "string"
-          },
-          "md": {
-            "type": "number"
-          },
-          "azimuth": {
-            "type": "number"
-          },
-          "dip": {
-            "type": "number"
-          },
-          "azimuthReference": {
-            "enum": [
-              "true",
-              "grid",
-              "magnetic",
-              "unknown"
-            ]
-          },
-          "role": {
-            "enum": [
-              "measured",
-              "collar-orientation",
-              "compiled-extension",
-              "authored-validation"
-            ]
-          },
-          "instrument": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "id": {"type": "string"},
+          "holeId": {"type": "string"},
+          "md": {"type": "number", "minimum": 0},
+          "azimuth": {"type": "number", "minimum": 0, "exclusiveMaximum": 360},
+          "dip": {"type": "number", "minimum": -90, "maximum": 90},
+          "azimuthReference": {"$ref": "#/$defs/azimuthReference"},
+          "role": {"enum": ["recorded-collar-direction", "measured", "compiled-extension", "authored-validation"]},
+          "instrument": {"$ref": "#/$defs/nullableString"},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
       }
     },
@@ -365,71 +181,18 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "holeId",
-          "kind",
-          "method",
-          "validFromMd",
-          "validToMd",
-          "azimuthAssumption",
-          "extensionPolicy",
-          "sourceRefs"
-        ],
+        "required": ["holeId", "kind", "method", "validFromMd", "validToMd", "azimuthAssumption", "startExtension",
+                     "endExtension", "sourceRefs"],
         "properties": {
-          "holeId": {
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "measured-stations",
-              "collar-orientation",
-              "assumed-vertical",
-              "authored-validation"
-            ]
-          },
-          "method": {
-            "enum": [
-              "minimum-curvature",
-              "straight"
-            ]
-          },
-          "validFromMd": {
-            "type": "number"
-          },
-          "validToMd": {
-            "type": "number"
-          },
-          "azimuthAssumption": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "extensionPolicy": {
-            "enum": [
-              "error",
-              "hold-last-direction"
-            ]
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "holeId": {"type": "string"},
+          "kind": {"enum": ["measured-stations", "collar-orientation", "assumed-vertical", "authored-validation"]},
+          "method": {"enum": ["minimum-curvature", "straight"]},
+          "validFromMd": {"type": "number", "minimum": 0},
+          "validToMd": {"$ref": "#/$defs/nullableNumber"},
+          "azimuthAssumption": {"$ref": "#/$defs/nullableString"},
+          "startExtension": {"enum": ["none", "tangent"]},
+          "endExtension": {"enum": ["none", "tangent"]},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
       }
     },
@@ -438,58 +201,13 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "name",
-          "unit",
-          "quantity",
-          "sourceRefs"
-        ],
+        "required": ["id", "name", "unit", "quantity", "sourceRefs"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "en",
-              "es"
-            ],
-            "properties": {
-              "en": {
-                "type": "string"
-              },
-              "es": {
-                "type": "string"
-              }
-            }
-          },
-          "unit": {
-            "type": "string"
-          },
-          "quantity": {
-            "type": "string"
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "id": {"type": "string"},
+          "name": {"$ref": "#/$defs/localized"},
+          "unit": {"type": "string"},
+          "quantity": {"type": "string"},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
       }
     },
@@ -498,292 +216,84 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "holeId",
-          "kind",
-          "fromMd",
-          "toMd",
-          "atMd",
-          "samplingMeasure",
-          "components",
-          "sourceDescription",
-          "sourceRefs"
-        ],
+        "required": ["id", "holeId", "sampleId", "kind", "fromMd", "toMd", "atMd", "samplingMeasure", "components",
+                     "sourceDescription", "sourceRefs"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "holeId": {
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "interval",
-              "sampling-envelope",
-              "point",
-              "unknown"
-            ]
-          },
-          "fromMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "toMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "atMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "samplingMeasure": {
-            "enum": [
-              "uniform-length",
-              "weighted-components",
-              "point",
-              "unknown"
-            ]
-          },
+          "id": {"type": "string"},
+          "holeId": {"type": "string"},
+          "sampleId": {"$ref": "#/$defs/nullableString"},
+          "kind": {"enum": ["interval", "sampling-envelope", "point", "unknown"]},
+          "fromMd": {"$ref": "#/$defs/nullableNumber"},
+          "toMd": {"$ref": "#/$defs/nullableNumber"},
+          "atMd": {"$ref": "#/$defs/nullableNumber"},
+          "samplingMeasure": {"enum": ["uniform-length", "weighted-components", "point", "unknown"]},
           "components": {
             "anyOf": [
-              {
-                "type": "null"
-              },
+              {"type": "null"},
               {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": [
-                    "fromMd",
-                    "toMd",
-                    "weight"
-                  ],
-                  "properties": {
-                    "fromMd": {
-                      "type": "number"
-                    },
-                    "toMd": {
-                      "type": "number"
-                    },
-                    "weight": {
-                      "type": "number"
-                    }
-                  }
+                  "required": ["fromMd", "toMd", "weight"],
+                  "properties": {"fromMd": {"type": "number"}, "toMd": {"type": "number"}, "weight": {"type": "number"}}
                 }
               }
             ]
           },
-          "sourceDescription": {
-            "type": "string"
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "sourceDescription": {"$ref": "#/$defs/nullableString"},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
       }
     },
     "determinations": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "supportId",
-          "analyteId",
-          "value",
-          "rawValue",
-          "qualifier",
-          "detectionLimit",
-          "unit",
-          "method",
-          "lab",
-          "sourceRefs"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "supportId": {
-            "type": "string"
-          },
-          "analyteId": {
-            "type": "string"
-          },
-          "value": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "rawValue": {
-            "type": "string"
-          },
-          "qualifier": {
-            "enum": [
-              null,
-              "below-detection",
-              "above-range",
-              "missing"
-            ]
-          },
-          "detectionLimit": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "unit": {
-            "type": "string"
-          },
-          "method": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "lab": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        }
-      }
+      "items": {"$ref": "#/$defs/determination"}
     },
     "geology": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "holeId",
-          "kind",
-          "fromMd",
-          "toMd",
-          "atMd",
-          "sourceCode",
-          "sourceDescription",
-          "mappedCode",
-          "mappingVersion",
-          "sourceRefs"
-        ],
+        "required": ["id", "holeId", "kind", "fromMd", "toMd", "atMd", "codes", "description", "mappedCode",
+                     "mappingVersion", "sourceRefs"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "holeId": {
-            "type": "string"
-          },
-          "kind": {
-            "enum": [
-              "interval",
-              "point"
-            ]
-          },
-          "fromMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "toMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "atMd": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "sourceCode": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sourceDescription": {
-            "type": "string"
-          },
-          "mappedCode": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "mappingVersion": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sourceRefs": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "sourceId",
-                "rowId"
-              ],
-              "properties": {
-                "sourceId": {
-                  "type": "string"
-                },
-                "rowId": {
-                  "type": "string"
-                }
-              }
-            }
-          }
+          "id": {"type": "string"},
+          "holeId": {"type": "string"},
+          "kind": {"enum": ["interval", "event"]},
+          "fromMd": {"$ref": "#/$defs/nullableNumber"},
+          "toMd": {"$ref": "#/$defs/nullableNumber"},
+          "atMd": {"$ref": "#/$defs/nullableNumber"},
+          "codes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/nullableString"}},
+          "description": {"$ref": "#/$defs/nullableString"},
+          "mappedCode": {"$ref": "#/$defs/nullableString"},
+          "mappingVersion": {"$ref": "#/$defs/nullableString"},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
         }
+      }
+    },
+    "qc": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "sampleId", "controlType", "determinations", "sourceRefs"],
+        "properties": {
+          "id": {"type": "string"},
+          "sampleId": {"type": "string"},
+          "controlType": {"type": "string"},
+          "determinations": {"type": "array", "items": {"$ref": "#/$defs/determination"}},
+          "sourceRefs": {"$ref": "#/$defs/sourceRefs"}
+        }
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["table", "rowId", "reason"],
+        "properties": {"table": {"type": "string"}, "rowId": {"type": "string"}, "reason": {"type": "string"}}
       }
     },
     "issues": {
@@ -791,52 +301,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "severity",
-          "code",
-          "table",
-          "rowIds",
-          "holeId",
-          "message",
-          "action"
-        ],
+        "required": ["id", "severity", "code", "table", "rowIds", "holeId", "message", "action"],
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "severity": {
-            "enum": [
-              "error",
-              "warning",
-              "info"
-            ]
-          },
-          "code": {
-            "type": "string"
-          },
-          "table": {
-            "type": "string"
-          },
-          "rowIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "holeId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "message": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string"
-          }
+          "id": {"type": "string"},
+          "severity": {"enum": ["info", "warning", "error"]},
+          "code": {"type": "string"},
+          "table": {"type": "string"},
+          "rowIds": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "holeId": {"$ref": "#/$defs/nullableString"},
+          "message": {"type": "string"},
+          "action": {"type": "string"}
         }
+      }
+    },
+    "waterfall": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "count"],
+        "properties": {"step": {"type": "string"}, "count": {"type": "integer", "minimum": 0}}
       }
     }
   }

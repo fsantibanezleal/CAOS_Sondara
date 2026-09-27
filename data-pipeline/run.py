@@ -47,7 +47,7 @@ def ingest(family: str, cache: Path, out: Path) -> dict:
     target = out / family
     write_json(target / "project.json", project)
     counts = {k: len(project[k]) for k in ("collars", "surveys", "trajectories", "analytes", "supports",
-                                            "determinations", "geology", "issues")}
+                                            "determinations", "geology", "qc", "exclusions", "issues")}
     summary = {
         "schema": "drillhole.ingest-summary/v1",
         "family": family,

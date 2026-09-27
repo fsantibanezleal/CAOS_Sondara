@@ -4,6 +4,30 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.05.000], 2026-09-26
+
+### Added
+- The design document the product lacked (ADR-0075): `docs/design/SDD.md` with the problem, non-goals, contracts,
+  lanes, method acceptance criteria, cases, oracle, deploy driver, risks and 18 requirements in force, each naming the
+  test or guard that verifies it; the feature design of unit SD-4 in `docs/design/features/import-and-fixtures/`, with
+  the 5 contract requirements of this release;
+  `scripts/check_sdd.py` in the CI guards.
+- Tests for two requirements that had none: `acquire` refuses a changed source, and `preprocess` refuses a project
+  that does not match its ingest summary.
+
+### Changed
+- The canonical contract is `drillhole.project/v2`, and `schemas/project.schema.json`, which had drifted from what the
+  adapters wrote, is now its one normative definition. The artifact check validates it with `jsonschema` before the
+  referential rules. Changes: determination `state` (measured, censored-below, censored-above, missing, not-sampled,
+  lost-core, sentinel) and `sampleRole`; survey `id`, `azimuthReference`, `instrument` and the roles
+  `recorded-collar-direction`, `measured`, `compiled-extension`; trajectory `startExtension` and `endExtension`;
+  collar `namespace` and `orientation.sourceInclination`; support `sampleId`; geology `codes` verbatim under their
+  source column names and events at `atMd`; new `qc` and `exclusions` tables.
+- The three adapters and the preprocess stage write and read v2; the desurvey takes its extension policies from the
+  project, uses only recorded collar directions and measurements as stations, and accepts a first station below the
+  collar only under a declared start extension. All audit figures are unchanged.
+- `docs/architecture/08_data-contracts.md` describes Sondara's contracts instead of the template's example.
+
 ## [0.04.000], 2026-09-26
 
 ### Added
