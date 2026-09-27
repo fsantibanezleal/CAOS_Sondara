@@ -7,6 +7,8 @@
     python data-pipeline/run.py preprocess [--family rocklea|alberta|ntgs|all|<project id>] [--out DIR]
     python data-pipeline/run.py dataset    [--family ...] [--out DIR]
     python data-pipeline/run.py features   [--family ...] [--out DIR]
+    python data-pipeline/run.py train      [--family ...] [--out DIR]
+    python data-pipeline/run.py infer      [--family ...] [--out DIR]
 
 ``acquire`` fetches the pinned sources of ``data/sources/manifest.json`` (or copies the bundled licensed subset),
 checking every byte count and SHA-256, and writes an acquisition receipt. ``ingest`` builds each family's canonical
@@ -17,8 +19,9 @@ hash against the ingest summary, and writes the desurveyed positions, result sel
 modeling populations (``stages/preprocess.py``, on GeoCond); for an imported project it takes the compositing options
 and method priority from the stored manifest. ``dataset`` freezes the grouped splits of each family (hole-group,
 spatial-margin and a declared holdout) before any fit, and ``features`` computes training-only statistics,
-declustering and experimental variograms (``stages/dataset.py``, ``stages/features.py``). Each stage checks the hash of
-its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
+declustering and experimental variograms (``stages/dataset.py``, ``stages/features.py``). ``train`` fits and selects
+the covariance models on training and validation rows (``stages/train.py``), and ``infer`` predicts the test rows with
+the eight classical methods (``stages/infer.py``). Each stage checks the hash of its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
 outputs go to ``--out`` (default ``build/derived``).
 """
 
@@ -155,9 +158,47 @@ def features(family: str, out: Path) -> dict:
             "seconds": round(time.time() - t0, 2)}
 
 
+def _chain(family: str, out: Path):
+    target, project, pre, project_sha, pre_sha = _preprocessed(family, out)
+    split = load_json(target / "dataset.json")
+    if (split["inputProjectSha256"], split["inputPreprocessedSha256"]) != (project_sha, pre_sha):
+        raise ValueError(f"{family}: dataset.json was built from other inputs; run dataset again")
+    return target, project, pre, split
+
+
+def train(family: str, out: Path) -> dict:
+    from stages.train import train_family
+
+    t0 = time.time()
+    target, project, pre, split = _chain(family, out)
+    features_record = load_json(target / "features.json")
+    if features_record["inputDatasetSha256"] != stable_hash(split):
+        raise ValueError(f"{family}: features.json was computed from another dataset; run features again")
+    result = train_family(family, project, pre, split, features_record)
+    result["inputFeaturesSha256"] = stable_hash(features_record)
+    write_json(target / "models.json", result)
+    fitted = [p for s in result["schemes"] for p in s["populations"]]
+    return {"family": family, "eligible": result["eligible"], "populations": len(fitted),
+            "fitted": sum(p["status"] == "fitted" for p in fitted), "seconds": round(time.time() - t0, 1)}
+
+
+def infer(family: str, out: Path) -> dict:
+    from stages.infer import infer_family
+
+    t0 = time.time()
+    target, project, pre, split = _chain(family, out)
+    models = load_json(target / "models.json")
+    if models["inputFeaturesSha256"] != stable_hash(load_json(target / "features.json")):
+        raise ValueError(f"{family}: models.json was fitted on other features; run train again")
+    result = infer_family(family, project, pre, split, models)
+    result["inputModelsSha256"] = stable_hash(models)
+    write_json(target / "predictions.json", result)
+    return {"family": family, "eligible": result["eligible"], "seconds": round(time.time() - t0, 1)}
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("stage", choices=["acquire", "ingest", "preprocess", "dataset", "features"])
+    parser.add_argument("stage", choices=["acquire", "ingest", "preprocess", "dataset", "features", "train", "infer"])
     parser.add_argument("--family", default="all", help="rocklea, alberta, ntgs, all, or an imported project id")
     parser.add_argument("--manifest", type=Path, help="ingest user files described by this import manifest")
     parser.add_argument("--cache", type=Path, default=Path(os.environ.get("SONDARA_RAW", ROOT / "build" / "sources")))
@@ -183,8 +224,12 @@ def main(argv=None) -> int:
             print(json.dumps({k: summary[k] for k in ("family", "waterfall", "seconds")}))
         elif args.stage == "dataset":
             print(json.dumps(dataset(family, args.out)))
-        else:
+        elif args.stage == "features":
             print(json.dumps(features(family, args.out)))
+        elif args.stage == "train":
+            print(json.dumps(train(family, args.out)))
+        else:
+            print(json.dumps(infer(family, args.out)))
     return 0
 
 

@@ -4,6 +4,26 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.08.000], 2026-09-27
+
+### Added
+- The `train` stage (unit SD-5, second release): 14 declared covariance candidates per population, fitted by GeoCond
+  on the training variograms and selected by the validation RMSE of ordinary kriging (at least 90 % coverage), with
+  every candidate's objective, validation error and range-bound flags recorded; a residual covariance after a
+  training-only linear trend for universal kriging; a jointly fitted PSD LMC for the declared variables; indicator
+  covariances at training-weighted deciles; a normal-score table and its Gaussian-space covariance.
+- The `infer` stage and the method layer: NN, IDW, SK, OK, UK, ordinary cokriging, MIK and SGS on identical test
+  targets from the training rows, one neighbourhood plan, statuses and reasons for every target, domain policies,
+  simple kriging's prior-only result, and a declared enlarged neighbourhood for a rank-deficient universal-kriging
+  drift. Rocklea and Alberta predict every test target with every method.
+- Authored truths S05 to S09 and fixtures F31 to F37 and F39 verified; an authored field for the stage tests;
+  requirements R-520 to R-532; models and predictions checks in `scripts/check_artifacts.py`.
+- GeoCond 0.6.2, whose kriging residual diagnostic no longer divides zero by zero beyond every range (found here).
+
+### Fixed
+- Populations of a user import name their analyte, so each is fitted for its own analyte, with the other analytes as
+  cokriging secondaries.
+
 ## [0.07.000], 2026-09-26
 
 ### Added

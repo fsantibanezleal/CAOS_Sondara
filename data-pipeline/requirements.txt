@@ -3,4 +3,4 @@
 openpyxl==3.1.5  # ingest: the Rocklea assay workbook
 numpy==2.5.3     # learned/: features, training and export
 scipy==1.18.1    # learned/features.py: pairwise distances
-geocond==0.6.1   # preprocess: desurvey and compositing (docs/frameworks/01_geocond)
+geocond==0.6.2   # preprocess to infer: geometry, compositing, variograms, kriging, simulation (docs/frameworks/01_geocond)

@@ -16,7 +16,7 @@ side, as plain scripts. Sondara never re-implements a GeoCond method; it decides
 
 ## Install (exact, verified)
 
-`geocond==0.6.1` is pinned in `data-pipeline/requirements.txt` and installs from PyPI into `.venv-pipeline` with NumPy
+`geocond==0.6.2` is pinned in `data-pipeline/requirements.txt` and installs from PyPI into `.venv-pipeline` with NumPy
 and SciPy only. The optional `cuda` extra (`torch>=2.9,<3`) is needed only by the CUDA lanes, which the preprocess
 stage does not use.
 
@@ -36,7 +36,9 @@ composite_intervals([0, 1], [1, 3], [2.0, 5.0], fixed_boundaries(0, 3, 2), min_c
 | Stage | GeoCond modules | Inputs | Outputs |
 |---|---|---|---|
 | `preprocess` (0.04.000) | `geometry`, `compositing` | collars, survey stations, supports, determinations, logged geology | positions on the arc, composites with coverage and parents, category proportions |
-| `features`, `train`, `infer` (planned) | `variogram`, `covariance`, `kriging`, `neighborhood`, `probability`, `simulation`, `direct_sampling`, `cuda` | composites and populations with frozen splits | fitted models, estimates with diagnostics, realizations |
+| `features` (0.07.000) | `variogram` | training rows of each split | experimental direct and cross variograms |
+| `train`, `infer` (0.08.000) | `variogram`, `covariance`, `kriging`, `neighborhood`, `baselines`, `probability`, `simulation` | training variograms and rows, validation rows, test targets | fitted and selected models, estimates with diagnostics, indicator probabilities, realizations |
+| SD-6, SD-7 (planned) | `direct_sampling`, `cuda` | categorical rows and training images; CUDA lanes | realizations, CPU and CUDA parity |
 
 The contracts, equations and the tests against independent references (R/gstat, PyKrige, GSTools, welleng,
 scikit-learn) are in GeoCond's [methods pages](https://github.com/fsantibanezleal/GeoCond/tree/main/docs/methods).

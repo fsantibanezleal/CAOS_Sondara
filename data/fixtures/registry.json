@@ -7,7 +7,9 @@
     "import",
     "preprocess",
     "dataset",
-    "features"
+    "features",
+    "train",
+    "infer"
   ],
   "fixtures": [
     {
@@ -315,7 +317,7 @@
           "reason": "insufficient-neighbours"
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_neighbourhood_limits_and_uninformed_targets"
     },
     {
       "id": "F32",
@@ -342,7 +344,7 @@
           "maxFromOneHole": 4
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_neighbourhood_limits_and_uninformed_targets"
     },
     {
       "id": "F33",
@@ -372,7 +374,7 @@
           "maxAbsoluteDifference": 1e-09
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_rotation_invariance"
     },
     {
       "id": "F34",
@@ -401,7 +403,7 @@
           "reason": "singular-or-ill-conditioned"
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_invalid_models_and_systems_fail_honestly"
     },
     {
       "id": "F35",
@@ -451,7 +453,7 @@
           }
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_domain_boundaries"
     },
     {
       "id": "F36",
@@ -480,7 +482,7 @@
           "conditioning": "absent"
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_simple_kriging_prior_without_conditioning"
     },
     {
       "id": "F37",
@@ -521,7 +523,7 @@
           "methodLabel": "universal kriging"
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_invalid_models_and_systems_fail_honestly"
     },
     {
       "id": "F38",
@@ -560,7 +562,7 @@
           "hardDataHonoured": true
         }
       },
-      "verification": null
+      "verification": "tests/test_infer.py::test_sgs_seeds_and_hard_data"
     },
     {
       "id": "F40",
