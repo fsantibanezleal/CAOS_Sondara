@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="298" viewBox="0 0 760 298" role="img" aria-labelledby="t d">
+  <title id="t">Alberta log coverage of sampling envelopes</title>
+  <desc id="d">Bars showing the share of the 176 Alberta sampling envelopes covered by any log, by a known Litho_unit and by a known Rock_type, with the counts of fully covered envelopes.</desc>
+  <style>
+    .t { font: 600 15px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font: 13px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .m { font: 12px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #59636e; }
+  </style>
+  <rect width="760" height="298" fill="#ffffff"/>
+  <text class="t" x="24" y="30">Alberta: logged geology over the 176 Cu/Zn sampling envelopes</text>
+  <text class="b" x="24" y="89">any positive log</text>
+  <rect x="250" y="70" width="440" height="26" fill="none" stroke="#d0d7de"/>
+  <rect x="250" y="70" width="439.9" height="26" fill="#0969da" fill-opacity="0.8"/>
+  <text class="m" x="250" y="114">1960.1 of 1960.4 m covered; 173 of 176 envelopes fully covered</text>
+  <text class="b" x="24" y="149">known Litho_unit</text>
+  <rect x="250" y="130" width="440" height="26" fill="none" stroke="#d0d7de"/>
+  <rect x="250" y="130" width="64.1" height="26" fill="#0969da" fill-opacity="0.8"/>
+  <text class="m" x="250" y="174">285.6 of 1960.4 m covered; 51 of 176 envelopes fully covered</text>
+  <text class="b" x="24" y="209">known Rock_type</text>
+  <rect x="250" y="190" width="440" height="26" fill="none" stroke="#d0d7de"/>
+  <rect x="250" y="190" width="46.5" height="26" fill="#0969da" fill-opacity="0.8"/>
+  <text class="m" x="250" y="234">207.4 of 1960.4 m covered; 36 of 176 envelopes fully covered</text>
+  <text class="m" x="24" y="260">A piece logged with two different known codes would be a conflict, not a choice; this report has none.</text>
+  <text class="m" x="24" y="278">2 envelopes cross the 0.05 m where MR-14 is logged twice. Codes -9999 and blank are unknown.</text>
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="322" viewBox="0 0 820 322" role="img" aria-labelledby="t d">
+  <title id="t">Rocklea composites by length</title>
+  <desc id="d">Stacked bars of full, residual and gap-touching composites at 1, 2 and 5 m for the 158 Rocklea holes.</desc>
+  <style>
+    .t { font: 600 15px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .b { font: 13px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #1f2328; }
+    .m { font: 12px 'Segoe UI', Helvetica, Arial, sans-serif; fill: #59636e; }
+  </style>
+  <rect width="820" height="322" fill="#ffffff"/>
+  <text class="t" x="24" y="30">Rocklea composites: full, residual and gap-touching intervals per length</text>
+  <text class="b" x="24" y="90">1 m</text>
+  <rect x="110.0" y="70" width="399.0" height="28" fill="#1a7f37" fill-opacity="0.85"/>
+  <rect x="509.0" y="70" width="1.5" height="28" fill="#9a6700" fill-opacity="0.85"/>
+  <rect x="509.0" y="70" width="1.5" height="28" fill="#d1242f" fill-opacity="0.85"/>
+  <text class="m" x="518.0" y="89">5,035 full, 0 residual, 12 touch a gap</text>
+  <text class="b" x="24" y="146">2 m</text>
+  <rect x="110.0" y="126" width="195.7" height="28" fill="#1a7f37" fill-opacity="0.85"/>
+  <rect x="305.7" y="126" width="6.7" height="28" fill="#9a6700" fill-opacity="0.85"/>
+  <rect x="312.4" y="126" width="1.5" height="28" fill="#d1242f" fill-opacity="0.85"/>
+  <text class="m" x="321.4" y="145">2,469 full, 85 residual, 12 touch a gap</text>
+  <text class="b" x="24" y="202">5 m</text>
+  <rect x="110.0" y="182" width="74.3" height="28" fill="#1a7f37" fill-opacity="0.85"/>
+  <rect x="184.3" y="182" width="9.3" height="28" fill="#9a6700" fill-opacity="0.85"/>
+  <rect x="193.5" y="182" width="1.5" height="28" fill="#d1242f" fill-opacity="0.85"/>
+  <text class="m" x="202.5" y="201">937 full, 117 residual, 12 touch a gap</text>
+  <rect x="24" y="244" width="12" height="12" fill="#1a7f37"/>
+  <text class="m" x="42" y="255">full: declared length, coverage 1</text>
+  <rect x="274" y="244" width="12" height="12" fill="#9a6700"/>
+  <text class="m" x="292" y="255">residual: last short composite of a hole</text>
+  <rect x="524" y="244" width="12" height="12" fill="#d1242f"/>
+  <text class="m" x="542" y="255">touches one of the 12 one-metre gaps: no mean</text>
+  <text class="m" x="24" y="284">Only full composites enter a uniform-support population. The grade-length integral of every analyte is conserved per hole</text>
+  <text class="m" x="24" y="302">(largest relative error 6.4e-16).</text>
+</svg>

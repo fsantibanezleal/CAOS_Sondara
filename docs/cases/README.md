@@ -11,8 +11,9 @@ into every result, and what the family can and cannot answer.
 | NTGS 12LE002 | [ntgs.md](ntgs.md) | measured-survey and QA scenarios | one hole, 11 measured stations, 1,892 determinations |
 | Authored fixtures | (unit SD-4) | S01 to S12, fixtures F01 to F42 | none: analytic and adversarial inputs, labelled as authored |
 
-Run the ingest with `python data-pipeline/run.py ingest --cache <raw sources>`; each family writes its canonical
-project, issue table and reconciliation waterfall to `build/derived/<family>/`.
+Run `python data-pipeline/run.py ingest --cache <raw sources>` and then `preprocess`; each family writes its canonical
+project, issue table and reconciliation waterfall, then its desurveyed positions, composites, log overlay and
+modeling populations, to `build/derived/<family>/`. Each family page ends with its preprocessing results.
 
 The three authored demo cases of the 0.2 releases (Copper Ridge, North Shear, Salar Edge) are not part of this registry.
 They remain in the current web page only until the web product is rebuilt on these families (unit SD-9).
