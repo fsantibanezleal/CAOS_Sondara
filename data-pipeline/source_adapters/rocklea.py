@@ -1,4 +1,10 @@
-"""CSIRO field assays joined to actual source XYZ; no inferred borehole collars."""
+"""CSIRO field assays joined to actual source XYZ; no inferred borehole collars.
+
+Units, methods and laboratory follow the source paper (Laukamp, Haest and Cudahy 2021, ESSD 13, 1371-1386,
+doi:10.5194/essd-13-1371-2021): XRF weight percentages of FeO, P, S, SiO2, Al2O3, Mn, CaO, K2O, MgO and TiO2 on 1 m
+RC samples by Kalassay Ltd, and loss on ignition at 1000 C. The workbook names the iron column Fe while the paper
+reports FeO; the values are kept under the workbook name and the difference is an issue.
+"""
 from collections import defaultdict
 from pathlib import Path
 
@@ -84,7 +90,7 @@ def normalize(cache: Path):
     for analyte in FEATURES:
         p['analytes'].append({'id': analyte, 'name': localized(analyte), 'unit': 'wt%',
                              'quantity': 'reported mass fraction; original column identity retained',
-                             'sourceRefs': refs('56857404', 'header:' + analyte)})
+                             'sourceRefs': refs('56857404', 'header:' + analyte) + refs('doi:10.5194/essd-13-1371-2021', 'methods')})
     for hole, row in eligible:
         row_id = str(row['_row'])
         sid = 'rk-' + str(row['Sample_ID'])
@@ -93,9 +99,15 @@ def normalize(cache: Path):
                                      'Original one-metre RC assay interval'))
         for analyte in FEATURES:
             p['determinations'].append(determination(f'{sid}:{analyte}', sid, analyte, number(row[analyte]),
-                                                      row[analyte], 'wt%', lineage,
+                                                      row[analyte], 'wt%', lineage, qualifier='=',
                                                       method='LOI-1000C' if analyte == 'LOI' else 'XRF',
                                                       lab='Kalassay'))
+    p['waterfall'] = [
+        {'step': 'workbook intervals', 'count': len(raw)},
+        {'step': 'with a unique source collar', 'count': len(raw) - len(unmatched)},
+        {'step': 'not zero in every analyte', 'count': len(eligible)},
+        {'step': 'holes', 'count': len({h for h, _ in eligible})},
+    ]
     issue(p, 'ALL_ANALYTE_ZERO', 'assay-source', zero,
           'Mapped source rows zero in every assay column are not treated as measured zero grades.',
           'Quarantined before modeling; original workbook retained by checksum.')
@@ -107,6 +119,6 @@ def normalize(cache: Path):
     issue(p, 'SOURCE_IRON_NOMENCLATURE', 'analytes', ['Fe'],
           'Workbook header is Fe, whereas the source paper describes FeO. Weight-percent values are preserved under the workbook name.',
           'No Fe-to-FeO conversion; source naming ambiguity remains visible.')
-    issue(p, 'ASSUMED_TRAJECTORY', 'trajectories', [],
+    issue(p, 'ASSUMED_TRAJECTORY', 'trajectories', [t['holeId'] for t in p['trajectories']],
           'No measured station surveys accompany the acquired Rocklea files.', 'Vertical projection explicitly labeled.')
     return p

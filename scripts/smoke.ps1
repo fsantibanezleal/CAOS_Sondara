@@ -1,5 +1,5 @@
-# Smoke: validate the CONTRACT 2 artifacts on disk (index -> manifests -> artifacts consistent). A real product
-# extends this with an HTTP/static check of the built site.
+# Smoke: validate every ingested family in build/derived against the drillhole.project/v1 contract
+# (run data-pipeline/run.py ingest first).
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 $py = Join-Path ".venv-pipeline" "Scripts\python.exe"

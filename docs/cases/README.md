@@ -1,11 +1,18 @@
-# Drillhole validation cases
+# Cases
 
-The workbench ships compact, authored scenarios that exercise multi-source ingestion and spatial estimation.
+Sondara's scenarios come from two real field families, a one-hole measured-survey family, and authored validation
+fixtures. Each family page states its source, license and attribution, what the ingest keeps, the decisions carried
+into every result, and what the family can and cannot answer.
 
-| case | purpose | methods |
-|---|---|---|
-| Copper Ridge | continuous copper grade and alteration halo | OK, SK, UK, LMC |
-| North Shear | discontinuous high-grade structural shoot | indicator kriging, SGS |
-| Salar Edge | layered chemistry and uncertain contact | block support, MPS |
+| Family | Page | Scenarios | Real data |
+|---|---|---|---|
+| Rocklea Dome, CSIRO | [rocklea.md](rocklea.md) | R01 to R12 | 5,035 one-metre multielement intervals in 158 holes, assumed vertical |
+| Alberta MAR_19860002, AGS | [alberta.md](alberta.md) | A01 to A08 | 22 inclined holes, 150 geology records, 176 Cu/Zn sampling envelopes |
+| NTGS 12LE002 | [ntgs.md](ntgs.md) | measured-survey and QA scenarios | one hole, 11 measured stations, 1,892 determinations |
+| Authored fixtures | (unit SD-4) | S01 to S12, fixtures F01 to F42 | none: analytic and adversarial inputs, labelled as authored |
 
-Each scenario declares coordinate frame, support interval, source provenance, conditioning records and a held-out check. Authored validation data is clearly labeled; it is not presented as a surveyed operating mine.
+Run the ingest with `python data-pipeline/run.py ingest --cache <raw sources>`; each family writes its canonical
+project, issue table and reconciliation waterfall to `build/derived/<family>/`.
+
+The three authored demo cases of the 0.2 releases (Copper Ridge, North Shear, Salar Edge) are not part of this registry.
+They remain in the current web page only until the web product is rebuilt on these families (unit SD-9).

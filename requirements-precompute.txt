@@ -1,4 +1,3 @@
-# Canonical OFFLINE lane. Keep one pinned entry per research-selected engine.
-# The example delegates to the tiny teaching engine; instantiated products replace
-# or extend this file and document every dependency under docs/frameworks/.
+# Offline lane (acquire, ingest and the later stages). The pins and the stage using each live in
+# data-pipeline/requirements.txt; docs/architecture/05_precompute-pipeline.md describes the stages.
 -r data-pipeline/requirements.txt
