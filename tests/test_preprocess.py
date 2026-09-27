@@ -77,7 +77,7 @@ def test_authored_compositing_positions_and_statuses():
     stage = _stage()
     p = _authored()
     surveys = stage.build_surveys(p)
-    comps = stage.composite_family(p, surveys, ["Cu"])
+    comps = stage.composite_family(p, surveys, ["Cu"], stage.select_results(p))
     table = {(r["length"], r["fromMd"]): r for r in comps["rows"] if r["holeId"] == "V"}
     assert table[(2.0, 0.0)]["values"]["Cu"] == 3.5 and table[(2.0, 0.0)]["status"] == "full"
     assert table[(2.0, 2.0)]["status"] == "insufficient-coverage" and table[(2.0, 2.0)]["values"]["Cu"] is None
@@ -224,10 +224,11 @@ def test_the_contract_check_rejects_each_preprocess_corruption(tmp_path):
     stage = _stage()
     authored = _authored()
     surveys = stage.build_surveys(authored)
+    selection = stage.select_results(authored)
     rocklike = {"schema": "drillhole.preprocessed/v1", "inputProjectSha256": contract.stable_hash(authored),
                 "trajectories": stage.trajectory_records(authored, surveys),
-                "positions": stage.support_positions(authored, surveys),
-                "composites": stage.composite_family(authored, surveys, ["Cu"]), "populations": []}
+                "positions": stage.support_positions(authored, surveys), "selections": selection,
+                "composites": stage.composite_family(authored, surveys, ["Cu"], selection), "populations": []}
     assert contract.check_preprocessed(rocklike, authored) == []
     rocklike["composites"]["rows"][0]["numerators"]["Cu"] += 1.0
     assert any("conserve" in e for e in contract.check_preprocessed(rocklike, authored))

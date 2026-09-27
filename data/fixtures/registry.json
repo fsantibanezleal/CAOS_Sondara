@@ -1,0 +1,614 @@
+{
+  "schema": "drillhole.fixtures/v1",
+  "source": "Authored validation fixture catalogue, data dossier of 2026-09-10 (management repository)",
+  "builtStages": [
+    "acquire",
+    "ingest",
+    "import",
+    "preprocess"
+  ],
+  "fixtures": [
+    {
+      "id": "F01",
+      "construction": "Two collar, two survey and three disjoint assay files",
+      "stage": "import",
+      "expected": "Same canonical data as the consolidated files",
+      "files": "data/fixtures/F01/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_split_and_reordered_files_equal_the_consolidated_import"
+    },
+    {
+      "id": "F02",
+      "construction": "Reordered files and rows",
+      "stage": "import",
+      "expected": "Invariant under explicit precedence and sorting",
+      "files": "data/fixtures/F02/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_split_and_reordered_files_equal_the_consolidated_import"
+    },
+    {
+      "id": "F03",
+      "construction": "Identical file twice",
+      "stage": "import",
+      "expected": "No doubled measurements",
+      "files": "data/fixtures/F03/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_a_repeated_file_adds_no_measurement"
+    },
+    {
+      "id": "F04",
+      "construction": "Conflicting collar versions",
+      "stage": "import",
+      "expected": "Both versions and the affected records reported; accepted only with a recorded resolution",
+      "files": "data/fixtures/F04/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_conflicting_collars_block_until_resolved"
+    },
+    {
+      "id": "F05",
+      "construction": "Two sources reuse DH001",
+      "stage": "import",
+      "expected": "Namespaced identity remains distinct; an explicit alias merges",
+      "files": "data/fixtures/F05/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_namespaces_keep_reused_hole_ids_apart"
+    },
+    {
+      "id": "F06",
+      "construction": "Assays arrive first",
+      "stage": "import",
+      "expected": "Pending companions, no invented geometry",
+      "files": "data/fixtures/F06/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_assays_without_collars_stay_pending"
+    },
+    {
+      "id": "F07",
+      "construction": "One orphan assay",
+      "stage": "import",
+      "expected": "Isolated while the valid holes are accepted",
+      "files": "data/fixtures/F07/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_an_orphan_assay_is_isolated"
+    },
+    {
+      "id": "F08",
+      "construction": "00012, 12, DH-12 and dh-12",
+      "stage": "import",
+      "expected": "Exact strings kept; normalization collisions reported",
+      "files": "data/fixtures/F08/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_hole_ids_keep_case_and_zeros_and_collisions_are_reported"
+    },
+    {
+      "id": "F09",
+      "construction": "Semicolon, decimal comma and quoted delimiters",
+      "stage": "import",
+      "expected": "Declared parsing conventions preserve values",
+      "files": "data/fixtures/F09/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_declared_dialects_preserve_values"
+    },
+    {
+      "id": "F10",
+      "construction": "Duplicate headers or malformed rows",
+      "stage": "import",
+      "expected": "Precise file, row and column error; no shifted values",
+      "files": "data/fixtures/F10/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_malformed_files_fail_with_file_row_and_column"
+    },
+    {
+      "id": "F11",
+      "construction": "Feet and metres",
+      "stage": "import",
+      "expected": "Declared conversion: 10 ft = 3.048 m",
+      "files": "data/fixtures/F11/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_feet_convert_exactly"
+    },
+    {
+      "id": "F12",
+      "construction": "CRS mismatch or swapped axes",
+      "stage": "import",
+      "expected": "Spatial incompatibility surfaced before any join",
+      "files": "data/fixtures/F12/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_crs_mismatch_and_swapped_axes_fail_before_join"
+    },
+    {
+      "id": "F13",
+      "construction": "Vertical 100 m hole",
+      "stage": "preprocess",
+      "expected": "Easting and northing unchanged, elevation 100 m lower",
+      "files": "data/fixtures/F13/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_analytic_trajectories"
+    },
+    {
+      "id": "F14",
+      "construction": "Horizontal 100 m arc, azimuth 0 to 90 degrees",
+      "stage": "preprocess",
+      "expected": "East = North = 200/pi m",
+      "files": "data/fixtures/F14/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_analytic_trajectories"
+    },
+    {
+      "id": "F15",
+      "construction": "Azimuth 359 to 1 degrees",
+      "stage": "preprocess",
+      "expected": "A 2 degree turn, never 358",
+      "files": "data/fixtures/F15/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_analytic_trajectories"
+    },
+    {
+      "id": "F16",
+      "construction": "Opposite declared dip conventions",
+      "stage": "import",
+      "expected": "Same trace after explicit convention mapping",
+      "files": "data/fixtures/F16/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_dip_conventions_give_the_same_trace"
+    },
+    {
+      "id": "F17",
+      "construction": "Conflicting duplicate survey depth",
+      "stage": "import",
+      "expected": "Ambiguity reported before desurvey; the hole is blocked",
+      "files": "data/fixtures/F17/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_conflicting_survey_depths_block_the_hole"
+    },
+    {
+      "id": "F18",
+      "construction": "Missing or truncated survey",
+      "stage": "import",
+      "expected": "Explicit assumption and the affected depth range",
+      "files": "data/fixtures/F18/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_missing_and_truncated_surveys_are_declared"
+    },
+    {
+      "id": "F19",
+      "construction": "Reversed, zero and negative intervals",
+      "stage": "import",
+      "expected": "Exactly those records excluded and reported",
+      "files": "data/fixtures/F19/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_invalid_intervals_are_excluded_by_record"
+    },
+    {
+      "id": "F20",
+      "construction": "Within-series assay overlap",
+      "stage": "import",
+      "expected": "A conflict; no implicit summing or averaging",
+      "files": "data/fixtures/F20/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_overlapping_assays_are_conflicts_not_sums"
+    },
+    {
+      "id": "F21",
+      "construction": "Parallel analyte and method supports",
+      "stage": "import",
+      "expected": "Overlap retained as separate observations",
+      "files": "data/fixtures/F21/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_parallel_series_are_separate_observations"
+    },
+    {
+      "id": "F22",
+      "construction": "Lithology 0/3/5 m; assays 0/2/5 m",
+      "stage": "preprocess",
+      "expected": "Fragments 0/2/3/5 m, parent lengths conserved",
+      "files": "data/fixtures/F22/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_overlay_fragments_conserve_parent_lengths"
+    },
+    {
+      "id": "F23",
+      "construction": "Grade 1 over 2 m, grade 3 over 3 m",
+      "stage": "preprocess",
+      "expected": "Five-metre composite 2.2",
+      "files": "data/fixtures/F23/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_composite_fixtures"
+    },
+    {
+      "id": "F24",
+      "construction": "Grade 2 at 0-1 m, grade 4 at 2-3 m",
+      "stage": "preprocess",
+      "expected": "Coverage 2/3, observed mean 3; fails a 0.75 coverage gate",
+      "files": "data/fixtures/F24/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_composite_fixtures"
+    },
+    {
+      "id": "F25",
+      "construction": "5.5 m support, 2 m composites",
+      "stage": "preprocess",
+      "expected": "A declared 1.5 m residual",
+      "files": "data/fixtures/F25/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_composite_fixtures"
+    },
+    {
+      "id": "F26",
+      "construction": "Censored, zero, blank, not sampled, lost core and sentinel",
+      "stage": "import",
+      "expected": "Distinct states and a versioned eligibility rule",
+      "files": "data/fixtures/F26/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_states_are_distinct_and_eligibility_is_versioned"
+    },
+    {
+      "id": "F27",
+      "construction": "Above 10000 ppm, then 1.2 % by an overlimit method",
+      "stage": "preprocess",
+      "expected": "Both preserved; the selected overlimit value is 12000 ppm",
+      "files": "data/fixtures/F27/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_overlimit_reassay_is_selected"
+    },
+    {
+      "id": "F28",
+      "construction": "Several methods and labs, and a repeat",
+      "stage": "preprocess",
+      "expected": "Explicit result selection; the repeat adds no spatial support",
+      "files": "data/fixtures/F28/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_result_selection_is_explicit"
+    },
+    {
+      "id": "F29",
+      "construction": "Standards and blanks mixed with samples",
+      "stage": "import",
+      "expected": "Controls receive no fabricated coordinates",
+      "files": "data/fixtures/F29/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_controls_get_no_coordinates"
+    },
+    {
+      "id": "F30",
+      "construction": "Repeats joined to interval fragments",
+      "stage": "preprocess",
+      "expected": "No many-to-many fragment expansion",
+      "files": "data/fixtures/F30/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_repeats_do_not_multiply_fragments"
+    },
+    {
+      "id": "F31",
+      "construction": "Insufficient eligible neighbours",
+      "stage": "infer",
+      "expected": "A reasoned unestimated target; no zero-grade fallback",
+      "files": null,
+      "parameters": {
+        "observations": [
+          [
+            0,
+            0,
+            0,
+            1.0
+          ],
+          [
+            500,
+            0,
+            0,
+            2.0
+          ]
+        ],
+        "target": [
+          1000,
+          0,
+          0
+        ],
+        "neighbourhood": {
+          "radius": 100,
+          "minObservations": 3
+        },
+        "expect": {
+          "status": "unestimated",
+          "reason": "insufficient-neighbours"
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F32",
+      "construction": "Dense single hole versus several holes",
+      "stage": "infer",
+      "expected": "Per-hole and sector limits and the selected support shown",
+      "files": null,
+      "parameters": {
+        "denseHole": {
+          "hole": "A",
+          "count": 20,
+          "spacing": 1
+        },
+        "otherHoles": [
+          "B",
+          "C",
+          "D"
+        ],
+        "neighbourhood": {
+          "maxPerHole": 4,
+          "maxObservations": 12
+        },
+        "expect": {
+          "maxFromOneHole": 4
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F33",
+      "construction": "Authored anisotropic field and a rigid rotation",
+      "stage": "infer",
+      "expected": "Estimates invariant under a joint rotation of coordinates and anisotropy",
+      "files": null,
+      "parameters": {
+        "anisotropy": {
+          "ranges": [
+            100,
+            50,
+            10
+          ],
+          "rotation": [
+            30,
+            0,
+            0
+          ]
+        },
+        "rigidRotation": [
+          45,
+          10,
+          5
+        ],
+        "expect": {
+          "maxAbsoluteDifference": 1e-09
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F34",
+      "construction": "Conflicting colocated or ill-conditioned data",
+      "stage": "infer",
+      "expected": "Conditioning failure reported; never a successful NaN",
+      "files": null,
+      "parameters": {
+        "observations": [
+          [
+            0,
+            0,
+            0,
+            1.0
+          ],
+          [
+            0,
+            0,
+            0,
+            3.0
+          ]
+        ],
+        "nugget": 0.0,
+        "expect": {
+          "status": "failed",
+          "reason": "singular-or-ill-conditioned"
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F35",
+      "construction": "Hard versus soft domain boundary",
+      "stage": "infer",
+      "expected": "The declared support and range rules enforced",
+      "files": null,
+      "parameters": {
+        "domains": {
+          "A": [
+            [
+              0,
+              0,
+              0,
+              1.0
+            ]
+          ],
+          "B": [
+            [
+              5,
+              0,
+              0,
+              9.0
+            ]
+          ]
+        },
+        "target": {
+          "domain": "A",
+          "at": [
+            2,
+            0,
+            0
+          ]
+        },
+        "expect": {
+          "hard": {
+            "usesDomain": [
+              "A"
+            ]
+          },
+          "soft": {
+            "distance": 10,
+            "usesDomain": [
+              "A",
+              "B"
+            ]
+          }
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F36",
+      "construction": "Prior without nearby observations",
+      "stage": "infer",
+      "expected": "An explicit prior-driven result with absent conditioning",
+      "files": null,
+      "parameters": {
+        "mean": 2.0,
+        "observations": [
+          [
+            0,
+            0,
+            0,
+            5.0
+          ]
+        ],
+        "target": [
+          10000,
+          0,
+          0
+        ],
+        "range": 100,
+        "expect": {
+          "estimate": 2.0,
+          "conditioning": "absent"
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F37",
+      "construction": "Missing external drift or deficient rank",
+      "stage": "infer",
+      "expected": "Unsupported model or target; no silent method switch",
+      "files": null,
+      "parameters": {
+        "drift": "linear",
+        "observations": [
+          [
+            0,
+            0,
+            0,
+            1.0
+          ],
+          [
+            1,
+            0,
+            0,
+            2.0
+          ],
+          [
+            2,
+            0,
+            0,
+            3.0
+          ]
+        ],
+        "target": [
+          0,
+          1,
+          0
+        ],
+        "expect": {
+          "status": "failed",
+          "reason": "rank-deficient-drift",
+          "methodLabel": "universal kriging"
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F38",
+      "construction": "Conflicting orientation normals",
+      "stage": "features",
+      "expected": "Undefined or unstable orientation diagnosed",
+      "files": null,
+      "parameters": {
+        "orientations": [
+          {
+            "dip": 45,
+            "dipDirection": 90
+          },
+          {
+            "dip": 45,
+            "dipDirection": 270
+          }
+        ],
+        "expect": {
+          "status": "undefined"
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F39",
+      "construction": "Seeded conditional realizations",
+      "stage": "infer",
+      "expected": "Seed reproducibility and model-specific conditioning checks",
+      "files": null,
+      "parameters": {
+        "seed": 20260926,
+        "realizations": 2,
+        "expect": {
+          "sameSeedIdentical": true,
+          "hardDataHonoured": true
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F40",
+      "construction": "Holdout with fragments and repeats",
+      "stage": "dataset",
+      "expected": "Every held-out derivative and result excluded from training",
+      "files": null,
+      "parameters": {
+        "heldOutHole": "B",
+        "derivatives": [
+          "composites",
+          "fragments",
+          "repeats"
+        ],
+        "expect": {
+          "trainingContainsHeldOut": false
+        }
+      },
+      "verification": null
+    },
+    {
+      "id": "F41",
+      "construction": "Cancellation, failure and an interrupted import",
+      "stage": "import",
+      "expected": "The previous project intact; no partial final result",
+      "files": "data/fixtures/F41/",
+      "parameters": null,
+      "verification": "tests/test_import.py::test_an_interrupted_import_leaves_the_previous_project"
+    },
+    {
+      "id": "F42",
+      "construction": "Export, re-import and CPU and accelerated parity",
+      "stage": "export",
+      "expected": "Metadata, eligibility and declared tolerances preserved",
+      "files": null,
+      "parameters": {
+        "roundTrip": [
+          "project",
+          "preprocessed",
+          "estimates"
+        ],
+        "tolerances": {
+          "cpuCuda": 1e-12,
+          "onnx": 1e-05
+        },
+        "expect": {
+          "metadataPreserved": true
+        }
+      },
+      "verification": null
+    }
+  ]
+}

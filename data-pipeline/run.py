@@ -3,15 +3,18 @@
 
     python data-pipeline/run.py acquire [--cache DIR]
     python data-pipeline/run.py ingest  [--family rocklea|alberta|ntgs|all] [--cache DIR] [--out DIR]
-    python data-pipeline/run.py preprocess [--family rocklea|alberta|ntgs|all] [--out DIR]
+    python data-pipeline/run.py ingest  --manifest import.json [--out DIR]
+    python data-pipeline/run.py preprocess [--family rocklea|alberta|ntgs|all|<project id>] [--out DIR]
 
 ``acquire`` fetches the pinned sources of ``data/sources/manifest.json`` (or copies the bundled licensed subset),
 checking every byte count and SHA-256, and writes an acquisition receipt. ``ingest`` builds each family's canonical
-project (collars, surveys, trajectories, analytes, supports, determinations, geology), its QA issue table and its
-reconciliation waterfall, and writes them with a hash. ``preprocess`` reads that project, checks its hash against the
-ingest summary, and writes the desurveyed positions, composites, log overlay and modeling populations
-(``stages/preprocess.py``, on GeoCond). Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW``
-or ``build/sources``); derived outputs go to ``--out`` (default ``build/derived``).
+project (``drillhole.project/v2``), its QA issue table and its reconciliation waterfall, and writes them with a hash;
+with ``--manifest`` it imports user files described by an import manifest instead, as a transaction that commits only
+an accepted project and always writes ``<project id>.import-report.json``. ``preprocess`` reads a project, checks its
+hash against the ingest summary, and writes the desurveyed positions, result selections, composites, log overlays and
+modeling populations (``stages/preprocess.py``, on GeoCond); for an imported project it takes the compositing options
+and method priority from the stored manifest. Raw sources live outside the repository (``--cache``, default
+``$SONDARA_RAW`` or ``build/sources``); derived outputs go to ``--out`` (default ``build/derived``).
 """
 
 from __future__ import annotations
@@ -29,6 +32,8 @@ sys.path.insert(0, str(HERE))
 from source_io import ROOT, acquire, load_json, stable_hash, write_json
 
 FAMILIES = ("rocklea", "alberta", "ntgs")
+COUNTED = ("collars", "surveys", "trajectories", "analytes", "supports", "determinations", "geology", "qc",
+           "exclusions", "issues")
 
 
 def _adapter(family: str):
@@ -46,21 +51,25 @@ def ingest(family: str, cache: Path, out: Path) -> dict:
     project = _adapter(family)(cache)
     target = out / family
     write_json(target / "project.json", project)
-    counts = {k: len(project[k]) for k in ("collars", "surveys", "trajectories", "analytes", "supports",
-                                            "determinations", "geology", "qc", "exclusions", "issues")}
     summary = {
         "schema": "drillhole.ingest-summary/v1",
         "family": family,
         "projectSha256": stable_hash(project),
         "recipe": project["provenance"]["recipe"],
         "recipeSha256": project["provenance"]["recipeSha256"],
-        "counts": counts,
+        "counts": {k: len(project[k]) for k in COUNTED},
         "waterfall": project.get("waterfall", []),
         "issues": [{"code": i["code"], "severity": i["severity"], "rows": len(i["rowIds"])} for i in project["issues"]],
         "seconds": round(time.time() - t0, 2),
     }
     write_json(target / "summary.json", summary, pretty=True)
     return summary
+
+
+def ingest_manifest(manifest: Path, out: Path, cancel=None) -> dict:
+    from source_adapters.manifest_import import run_import
+
+    return run_import(manifest, out, cancel)
 
 
 def preprocess(family: str, out: Path) -> dict:
@@ -73,7 +82,14 @@ def preprocess(family: str, out: Path) -> dict:
     project_sha = stable_hash(project)
     if ingest_summary["projectSha256"] != project_sha:
         raise ValueError(f"{family}: project.json does not match its ingest summary; run ingest again")
-    result = run_stage(family, project, project_sha)
+    options = {}
+    if (target / "import.json").is_file():
+        manifest = load_json(target / "import.json")
+        compositing = manifest.get("compositing", {})
+        options = {**({"lengths": compositing["lengths"]} if "lengths" in compositing else {}),
+                   **({"minCoverage": compositing["minCoverage"]} if "minCoverage" in compositing else {}),
+                   "methodPriority": manifest.get("methodPriority", {})}
+    result = run_stage(family, project, project_sha, options)
     write_json(target / "preprocessed.json", result)
     summary = {
         "schema": "drillhole.preprocess-summary/v1",
@@ -94,16 +110,24 @@ def preprocess(family: str, out: Path) -> dict:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("stage", choices=["acquire", "ingest", "preprocess"])
-    parser.add_argument("--family", default="all", choices=[*FAMILIES, "all"])
+    parser.add_argument("--family", default="all", help="rocklea, alberta, ntgs, all, or an imported project id")
+    parser.add_argument("--manifest", type=Path, help="ingest user files described by this import manifest")
     parser.add_argument("--cache", type=Path, default=Path(os.environ.get("SONDARA_RAW", ROOT / "build" / "sources")))
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "derived")
     args = parser.parse_args(argv)
     if args.stage == "acquire":
         print(json.dumps(acquire(args.cache), indent=2))
         return 0
+    if args.stage == "ingest" and args.manifest:
+        report = ingest_manifest(args.manifest, args.out)
+        print(json.dumps({"project": report["project"], "status": report["status"],
+                          "findings": report["counts"]["bySeverity"]}))
+        return 0 if report["status"] == "accepted" else 2
     families = FAMILIES if args.family == "all" else (args.family,)
     for family in families:
         if args.stage == "ingest":
+            if family not in FAMILIES:
+                parser.error(f"unknown family {family!r}; import user files with --manifest")
             summary = ingest(family, args.cache, args.out)
             print(json.dumps({k: summary[k] for k in ("family", "counts", "waterfall", "seconds")}))
         else:

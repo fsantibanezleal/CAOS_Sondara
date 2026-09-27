@@ -1,0 +1,57 @@
+{
+  "schema": "drillhole.import/v1",
+  "project": {
+    "id": "f09",
+    "name": "Fixture f09"
+  },
+  "frame": {
+    "id": "site",
+    "kind": "projected-metric",
+    "horizontalCrs": "EPSG:32719"
+  },
+  "namespace": "s",
+  "files": [
+    {
+      "path": "collars.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      },
+      "dialect": {
+        "delimiter": ";",
+        "decimal": ",",
+        "quote": "\"",
+        "encoding": "utf-8"
+      }
+    },
+    {
+      "path": "lithology.csv",
+      "role": "lithology",
+      "columns": {
+        "hole": "HoleID",
+        "from": "From",
+        "to": "To",
+        "description": "Description"
+      },
+      "codes": [
+        "Lith"
+      ],
+      "dialect": {
+        "delimiter": ";",
+        "decimal": ",",
+        "quote": "\"",
+        "encoding": "utf-8"
+      }
+    }
+  ]
+}

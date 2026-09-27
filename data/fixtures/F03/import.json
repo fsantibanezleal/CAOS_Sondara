@@ -1,0 +1,107 @@
+{
+  "schema": "drillhole.import/v1",
+  "project": {
+    "id": "f03",
+    "name": "Fixture f03"
+  },
+  "frame": {
+    "id": "site",
+    "kind": "projected-metric",
+    "horizontalCrs": "EPSG:32719"
+  },
+  "namespace": "s",
+  "files": [
+    {
+      "path": "collars.csv",
+      "role": "collar",
+      "crs": "EPSG:32719",
+      "columns": {
+        "hole": "HoleID",
+        "x": "East",
+        "y": "North",
+        "z": "RL",
+        "totalDepth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid"
+      }
+    },
+    {
+      "path": "surveys.csv",
+      "role": "survey",
+      "columns": {
+        "hole": "HoleID",
+        "depth": "Depth",
+        "azimuth": "Azimuth",
+        "dip": "Dip"
+      },
+      "angles": {
+        "azimuthReference": "grid",
+        "instrument": "authored"
+      }
+    },
+    {
+      "path": "assays.csv",
+      "role": "assay",
+      "columns": {
+        "hole": "HoleID",
+        "sample": "SampleID",
+        "from": "From",
+        "to": "To"
+      },
+      "analytes": {
+        "Cu_ppm": {
+          "analyte": "Cu",
+          "unit": "ppm",
+          "method": "ICP",
+          "lab": "L1"
+        },
+        "Au_gpt": {
+          "analyte": "Au",
+          "unit": "g/t",
+          "method": "FA",
+          "lab": "L1"
+        }
+      }
+    },
+    {
+      "path": "lithology.csv",
+      "role": "lithology",
+      "columns": {
+        "hole": "HoleID",
+        "from": "From",
+        "to": "To",
+        "description": "Description"
+      },
+      "codes": [
+        "Lith"
+      ]
+    },
+    {
+      "path": "assays_copy.csv",
+      "role": "assay",
+      "columns": {
+        "hole": "HoleID",
+        "sample": "SampleID",
+        "from": "From",
+        "to": "To"
+      },
+      "analytes": {
+        "Cu_ppm": {
+          "analyte": "Cu",
+          "unit": "ppm",
+          "method": "ICP",
+          "lab": "L1"
+        },
+        "Au_gpt": {
+          "analyte": "Au",
+          "unit": "g/t",
+          "method": "FA",
+          "lab": "L1"
+        }
+      }
+    }
+  ]
+}

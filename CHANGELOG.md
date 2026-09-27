@@ -4,6 +4,27 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.06.000], 2026-09-26
+
+### Added
+- The manifest importer (unit SD-4): `python data-pipeline/run.py ingest --manifest import.json` reads user collar,
+  survey, assay and lithology files described by `schemas/import.schema.json` as a transaction. Declared dialects and
+  units, exact hole identifiers under namespaces and explicit aliases, reference systems and swapped axes checked
+  before any join, collar conflicts that block until resolved, mapped dip conventions, duplicate and conflicting
+  survey depths, declared survey assumptions with their depth ranges, result states for every assay cell, controls
+  without coordinates, repeats, orphans, invalid intervals and overlapping series, all reported by file, role, hole,
+  severity and reason. Only an accepted import is committed, atomically; a rejected, pending, cancelled or failed
+  import leaves the previous project untouched.
+- Preprocess: result selection per sample geometry and analyte (a re-assay over an above-range result, a declared
+  method priority, never a repeat), eligibility v1, per-analyte compositing with observed means and configurable
+  lengths and coverage, overlay fragments, and extended depth ranges for every trajectory.
+- Fixtures F01 to F42 authored by `scripts/fixtures/author_fixtures.py`: files and manifests for the 31 owned by
+  built stages, parameters for the 11 owned by later stages, and `data/fixtures/registry.json`; the scenario registry
+  `data/scenarios/registry.json` with R01 to R12, A01 to A08 and S01 to S12.
+- 30 tests, one per requirement of the SD-4 design (R-419 to R-445, R-460 to R-462); every accepted fixture project
+  passes the artifact check.
+- The bring-your-own-data guide and the fixture catalogue page.
+
 ## [0.05.000], 2026-09-26
 
 ### Added

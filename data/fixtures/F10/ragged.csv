@@ -1,0 +1,3 @@
+HoleID,SampleID,From,To,Cu_ppm,Au_gpt
+DH1,DH1-S00,0,2,110,0.0
+DH1,DH1-S01,2,4,111,0.1,EXTRA

@@ -9,8 +9,8 @@ by path.
 
 ## Current release
 
-Version 0.05.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
-complete, and every stage writes the canonical contract `drillhole.project/v2` defined by
+Version 0.06.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
+complete, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
 [`schemas/project.schema.json`](schemas/project.schema.json):
 
 | Stage | What it does | Families |
