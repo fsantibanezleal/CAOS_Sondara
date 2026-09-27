@@ -1,0 +1,123 @@
+{
+  "source": {
+    "license": "CC BY 4.0",
+    "licenseEvidenceUrl": [
+      "https://geoscience.nt.gov.au/gemis/ntgsjspui/handle/1/93042",
+      "https://geoscience.nt.gov.au/gemis/ntgsjspui/handle/1/94622"
+    ],
+    "attribution": "Northern Territory of Australia (Northern Territory Geological Survey)",
+    "surveyProvenance": "11 Reflex EZ-Shot single-shot measurements, recorded collar direction, one terminal extension; original XLSX corroborated",
+    "originalReport": "https://geoscience.nt.gov.au/gemis/ntgsjspui/handle/1/77200",
+    "originalRole": "Corroboration only; redistributed scientific values derive from licensed DIP001/DIP043",
+    "sourceFiles": [
+      {
+        "file": "dip043-selected/Drillhole_Collars.csv",
+        "sha256": "007e9063794a90bb3b1b8289a760f9a104e79b786df0d7cee882d67611219d69"
+      },
+      {
+        "file": "dip043-selected/Drillhole_Surveys.csv",
+        "sha256": "ed22a8cc927813858e495f23b119da088d582a9bf3e415fed1728c537b446d0e"
+      },
+      {
+        "file": "report-selection/CR2012-1131_DrillSampsRawGC.csv",
+        "sha256": "175b56164ae1054c04f4fe22204e2abca1b979f8bc6d0699715c3d2dee3c8058"
+      },
+      {
+        "file": "EL27472_2012_DHSurvey.xlsx",
+        "sha256": "bce6d9f4d4514b11fd2c0ef77997e175909d4c046fb0e33446cff0e6f2bdb022"
+      }
+    ]
+  },
+  "coordinates": {
+    "kind": "local-metric",
+    "units": "m",
+    "axes": "east,north,up",
+    "origin": {
+      "sourceProjected": {
+        "x": 981950.0,
+        "y": 8277806.0,
+        "z": 182.28
+      },
+      "sourceHorizontalCRS": "EPSG:28352",
+      "geographicCRS": "EPSG:4283",
+      "longitude": 133.4902724043685,
+      "latitude": -15.531644151136403,
+      "verticalDatum": "not explicitly established for the selected compiled elevation",
+      "elevationProvenance": "DIP043 compiled Z; compilation uses SRTM draping; not claimed surveyed RL"
+    },
+    "normalization": "Local ground-distance ENU origin is exactly the declared source collar, not a fabricated collar",
+    "projectionDiagnostic": {
+      "meridianConvergenceDegrees": -1.2046960828137654,
+      "gridScaleAtCollar": 1.0024738951459884,
+      "true270GridBearingDegrees": 271.20469608281377,
+      "independentOneMetreGeodesicGridBearingDegrees": 271.2046961178396,
+      "reportZone53XYDifferenceM": 0.9056971448527361,
+      "reportRLm": 188,
+      "compiledZMinusReportRLm": -5.719999999999999
+    }
+  },
+  "surveyConvention": {
+    "dip": "negative-down-from-horizontal",
+    "azimuth": "declared-local-north-clockwise",
+    "localNorth": "true geographic north at the source collar",
+    "azimuthSource": "DIP043 matches original XLSX Azimuth_True",
+    "magneticDeclinationAlreadyAppliedDegrees": 4,
+    "applyDeclinationAgain": false
+  },
+  "maxHoles": 1,
+  "analytes": [
+    "Cu",
+    "Zn"
+  ],
+  "analyteUnits": {
+    "Cu": "ppm",
+    "Zn": "ppm"
+  },
+  "depthToleranceM": 0.001,
+  "tables": {
+    "collars": {
+      "file": "collars.csv",
+      "sha256": "6b40ceca4a3a172eecefda992989e37f0571a1556596a892fc7276a1547f280f",
+      "columns": {
+        "holeId": "holeId",
+        "x": "x",
+        "y": "y",
+        "z": "z",
+        "totalDepth": "totalDepth",
+        "sourceRow": "sourceRow"
+      }
+    },
+    "surveys": {
+      "file": "surveys.csv",
+      "sha256": "31ed2f053cbfac0f5b3991c6052a9ef0c835e0cfaa79b0c60a97ca1361efecaa",
+      "columns": {
+        "holeId": "holeId",
+        "md": "md",
+        "azimuth": "azimuth",
+        "dip": "dip",
+        "sourceRow": "sourceRow",
+        "role": "role"
+      }
+    },
+    "assays": {
+      "file": "assays.csv",
+      "sha256": "0e26cc6d8a49dafb31adee8db53555e341157ab59bf7d74c92cfc6b08660ce1c",
+      "columns": {
+        "holeId": "holeId",
+        "sampleId": "sampleId",
+        "from": "from",
+        "to": "to",
+        "analyte": "analyte",
+        "value": "value",
+        "unit": "unit",
+        "qualifier": "qualifier",
+        "detectionLimit": "detectionLimit",
+        "sourceNumericEncoding": "sourceNumericEncoding",
+        "sourceResultText": "sourceResultText",
+        "sampleMethod": "sampleMethod",
+        "labMethod": "labMethod",
+        "sourceRow": "sourceRow"
+      }
+    }
+  }
+}

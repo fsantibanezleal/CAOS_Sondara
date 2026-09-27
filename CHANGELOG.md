@@ -1,7 +1,34 @@
 # Changelog
 
-All notable changes to this product. Format: `X.XX.XXX` (display), see `pipeline.__version__`. Keep `0.x`
-while on mock/synthetic data. Tag every release.
+All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, `vX.XX.XXX` as the tag,
+semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
+release.
+
+## [0.03.000], 2026-09-26
+
+### Added
+- `acquire` and `ingest`, the first two stages of the offline lane (unit SD-1), for the three field families of the
+  research dossiers. `data/sources/manifest.json` pins every source by URL or bundled path, byte count and SHA-256,
+  with its license and attribution.
+- Rocklea Dome (CSIRO, CC BY 4.0): 17,474 workbook intervals reconcile to 7,240 with a unique source collar, then to
+  5,035 one-metre intervals in 158 assumed-vertical holes once the 2,205 all-analyte-zero rows are quarantined. Eleven
+  analytes; the Fe and FeO naming difference and the four all-zero columns are issues, not conversions.
+- Alberta MAR_19860002 (AGS DIG 2024-0022, OGL-Alberta): 22 collars with recorded directions, 150 logged geology
+  records, 342 Cu/Zn samples kept as 176 sampling envelopes with unknown weights, 162 point depths and 4 unknown
+  supports, with 9,612 determinations under their raw tokens.
+- NTGS 12LE002 (CC BY 4.0), bundled as a hashed subset: one hole in a local frame anchored at the source collar, 13
+  survey records of which 11 are measurements, and 1,892 determinations with the 850 below-detection results kept as
+  qualifier and limit, never as negative grades.
+- `scripts/check_artifacts.py` validates every ingested project against the `drillhole.project/v1` contract (identity,
+  references, support geometry, censoring, finite values, issue rows, summary hash and counts); the tests prove it
+  rejects each corruption.
+- Case pages for the three families in `docs/cases/`, with sources, decisions and limits.
+
+### Changed
+- The template's demo stage and its authored three-hole project are gone from the pipeline; the smoke check now
+  validates the ingested families. The web page still shows the 0.2 demo cases until the web unit (SD-9).
+- Pinned lanes: `openpyxl`, `numpy` and `scipy` in the offline lane; `ruff` 0.16.6 in the dev lane. The frontend
+  package is named `sondara-frontend`.
 
 ## [0.02.001], 2026-09-26
 

@@ -1,6 +1,5 @@
-# PRECOMPUTE lane, the heavy, research-chosen SOTA engines, in the .venv-pipeline (local-only, never deployed).
-# THIS is where the deep research becomes binding: every engine pinned here is documented in docs/frameworks/<tool>/
-# and actually used by data-pipeline/pipeline/stages/. The EXAMPLE engine (SIR) is numpy-only on purpose so the
-# template installs instantly with no native build; a real product adds e.g. yade / pychrono / ortools / mintpy /
-# torch here, each PINNED to the version it installs+verifies.
-numpy==2.4.6
+# Offline lane, pinned to the verified .venv-pipeline install (Python 3.12, 2026-09-26).
+# Each pin names the stage that imports it; later units add theirs (geocond from preprocess, pyarrow from export).
+openpyxl==3.1.5  # ingest: the Rocklea assay workbook
+numpy==2.5.3     # learned/: features, training and export
+scipy==1.18.1    # learned/features.py: pairwise distances

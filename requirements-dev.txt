@@ -1,4 +1,4 @@
-# DEV lane, lint + test. Pinned to the verified install (Python 3.12, 2026-06-20).
+# DEV lane, lint + test. Pinned to the verified install (Python 3.12, 2026-09-26).
 pytest==9.1.1
-ruff==0.15.18
+ruff==0.16.6
 pydantic==2.13.5
