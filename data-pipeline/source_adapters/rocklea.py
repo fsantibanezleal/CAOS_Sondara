@@ -11,7 +11,18 @@ from pathlib import Path
 import numpy as np
 import openpyxl
 from scipy.spatial import cKDTree
-from source_adapters.common import determination, issue, localized, project, refs, source, support
+from source_adapters.common import (
+    collar,
+    determination,
+    frame,
+    issue,
+    localized,
+    project,
+    refs,
+    source,
+    support,
+    trajectory,
+)
 from source_io import digest, number, read_table, stable_hash
 
 FEATURES = ['Fe', 'P', 'S', 'SiO2', 'Al2O3', 'Mn', 'CaO', 'K2O', 'MgO', 'TiO2', 'LOI']
@@ -31,10 +42,9 @@ def normalize(cache: Path):
                               'OOXML' if filename.endswith('xlsx') else 'utf-8-sig'))
     p = project('rocklea', localized('Rocklea: one-metre geochemistry', 'Rocklea: geoquímica a un metro'), sources,
                 'rocklea-v1: exact workbook supports; uppercase ID join; unique XYZ within 0.51 m; all-analyte-zero quarantine; source values unchanged',
-                {'id': 'rocklea-local', 'kind': 'local-metric', 'unit': 'm', 'horizontalCrs': None,
-                 'verticalDatum': None, 'origin': None,
-                 'assumptions': ['Source metric grid; per-file horizontal datum unresolved. No geographic reprojection.',
-                                 'Vertical trajectories are explicitly assumed; no measured station surveys acquired.']})
+                frame('rocklea-local', 'local-metric', assumptions=[
+                    'Source metric grid; per-file horizontal datum unresolved. No geographic reprojection.',
+                    'Vertical trajectories are explicitly assumed; no measured station surveys acquired.']))
     xyz_rows = list(read_table(cache / 'dem_plus_collars.csv'))
     xyz = np.array([[number(r[k]) for k in ('X', 'Y', 'Z')] for r in xyz_rows])
     tree = cKDTree(xyz[:, :2])
@@ -80,13 +90,9 @@ def normalize(cache: Path):
     for hole in sorted({h for h, _ in eligible}):
         position, source_refs = coordinates[hole]
         extent = max(number(r['To']) for h, r in eligible if h == hole)
-        p['collars'].append({'id': hole, 'sourceHoleId': hole, 'frameId': 'rocklea-local',
-                             'x': position[0], 'y': position[1], 'z': position[2],
-                             'totalDepth': None, 'observedDepthMax': extent, 'orientation': None,
-                             'sourceRefs': source_refs})
-        p['trajectories'].append({'holeId': hole, 'kind': 'assumed-vertical', 'method': 'straight',
-                                  'validFromMd': 0, 'validToMd': extent, 'azimuthAssumption': None,
-                                  'extensionPolicy': 'error', 'sourceRefs': source_refs})
+        p['collars'].append(collar(hole, 'rocklea', hole, 'rocklea-local', position[0], position[1], position[2],
+                                   source_refs, observed_depth=extent))
+        p['trajectories'].append(trajectory(hole, 'assumed-vertical', source_refs, valid_to=extent))
     for analyte in FEATURES:
         p['analytes'].append({'id': analyte, 'name': localized(analyte), 'unit': 'wt%',
                              'quantity': 'reported mass fraction; original column identity retained',
@@ -96,10 +102,10 @@ def normalize(cache: Path):
         sid = 'rk-' + str(row['Sample_ID'])
         lineage = refs('56857404', row_id)
         p['supports'].append(support(sid, hole, number(row['From']), number(row['To']), lineage,
-                                     'Original one-metre RC assay interval'))
+                                     'Original one-metre RC assay interval', sample=str(row['Sample_ID'])))
         for analyte in FEATURES:
             p['determinations'].append(determination(f'{sid}:{analyte}', sid, analyte, number(row[analyte]),
-                                                      row[analyte], 'wt%', lineage, qualifier='=',
+                                                      row[analyte], 'wt%', lineage,
                                                       method='LOI-1000C' if analyte == 'LOI' else 'XRF',
                                                       lab='Kalassay'))
     p['waterfall'] = [

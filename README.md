@@ -9,8 +9,9 @@ by path.
 
 ## Current release
 
-Version 0.04.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
-complete:
+Version 0.05.000. The build follows ten units (SD-1 to SD-10); the first three stages of the offline pipeline are
+complete, and every stage writes the canonical contract `drillhole.project/v2` defined by
+[`schemas/project.schema.json`](schemas/project.schema.json):
 
 | Stage | What it does | Families |
 |---|---|---|
@@ -38,6 +39,10 @@ export SONDARA_RAW=/path/outside/the/repo
 .venv-pipeline/Scripts/python data-pipeline/run.py preprocess
 .venv-pipeline/Scripts/python scripts/check_artifacts.py
 ```
+
+## Design
+
+The design, with every requirement and the test that verifies it, is [docs/design/SDD.md](docs/design/SDD.md).
 
 ## License
 

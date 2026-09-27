@@ -13,12 +13,26 @@ What the source supports, and what it does not (``docs/cases/alberta.md``):
 - Every populated analyte cell becomes a determination with its raw token; ``-9999`` and empty are missing, a ``<`` or
   ``>`` prefix is a qualifier with its threshold, and nothing is imputed. LOI at three temperatures are three methods,
   not replicates.
-- Geology keeps the source's ``Rock_type``, ``Litho_unit`` and description; point rows (top equal to bottom) are events.
+- Geology keeps the source's ``Rock_type``, ``Litho_unit`` and ``Material`` codes verbatim under their column names,
+  and the description verbatim; point rows (top equal to bottom) are events.
 """
 
 from collections import Counter
 
-from source_adapters.common import determination, issue, localized, project, refs, source, support
+from source_adapters.common import (
+    collar,
+    determination,
+    frame,
+    issue,
+    localized,
+    orientation,
+    project,
+    refs,
+    source,
+    support,
+    survey,
+    trajectory,
+)
 from source_io import digest, zip_table
 
 ARCHIVE = "DIG_2024_0022_0.zip"
@@ -42,13 +56,16 @@ def _unit(column: str) -> str:
 
 
 def _parse(token: str):
-    """(value, qualifier, threshold): missing -> (None, 'missing', None); '<x' -> (None, '<', x); plain -> (v, '=', None)."""
+    """(value, state, limit): '<x' -> censored-below at x; '>x' -> censored-above at x; a number -> measured."""
     raw = token.strip()
-    if raw in MISSING:
-        return None, "missing", None
     if raw[0] in "<>":
-        return None, raw[0], float(raw[1:])
-    return float(raw), "=", None
+        return None, "censored-below" if raw[0] == "<" else "censored-above", float(raw[1:])
+    return float(raw), "measured", None
+
+
+def _code(token: str):
+    """A source code kept verbatim; an empty field is no code."""
+    return token if token.strip() else None
 
 
 def _number(token: str):
@@ -69,12 +86,11 @@ def normalize(cache):
         sources,
         "alberta-v1: report MAR_19860002; (Data_src, DH_name) keys; recorded collar directions as straight "
         "trajectories; positive samples as sampling envelopes with unknown weights; raw analytical tokens retained",
-        {"id": "alberta-10tm", "kind": "projected-metric", "unit": "m", "horizontalCrs": None,
-         "horizontalDefinition": "NAD83 / 10TM, central meridian -115 degrees (source metadata)",
-         "verticalDatum": None, "origin": None,
-         "assumptions": ["Horizontal definition from the archive metadata; not mapped to an EPSG code.",
-                         "Ground elevation in metres; vertical datum deferred to the original reports.",
-                         "Azimuth north reference (true, grid or magnetic) not given by the source."]},
+        frame("alberta-10tm", "projected-metric",
+              horizontal_definition="NAD83 / 10TM, central meridian -115 degrees (source metadata)",
+              assumptions=["Horizontal definition from the archive metadata; not mapped to an EPSG code.",
+                           "Ground elevation in metres; vertical datum deferred to the original reports.",
+                           "Azimuth north reference (true, grid or magnetic) not given by the source."]),
     )
     def archive(member):
         return zip_table(path, member, encoding="cp1252", delimiter="\t")
@@ -92,29 +108,27 @@ def normalize(cache):
         total = float(r["Total_dpth"])
         holes[hole] = total
         lineage = refs("DIG_2024_0022_0", f"collars:{r['_row']}")
-        p["collars"].append({"id": hole, "sourceHoleId": hole, "frameId": "alberta-10tm",
-                             "x": float(r["E_10TM83"]), "y": float(r["N_10TM83"]), "z": float(r["Elvtn_grnd"]),
-                             "totalDepth": total, "observedDepthMax": None,
-                             "orientation": {"azimuth": float(r["Azimuth"]), "dip": dip, "inclinationSource": inclination,
-                                             "azimuthReference": "unknown"},
-                             "sourceRefs": lineage})
-        p["surveys"].append({"holeId": hole, "md": 0.0, "azimuth": float(r["Azimuth"]), "dip": dip,
-                             "role": "recorded-collar-direction", "sourceRefs": lineage})
-        p["trajectories"].append({"holeId": hole, "kind": "collar-orientation", "method": "straight",
-                                  "validFromMd": 0.0, "validToMd": total, "azimuthAssumption": "source azimuth, north reference unknown",
-                                  "extensionPolicy": "recorded direction to total depth", "sourceRefs": lineage})
+        azimuth = float(r["Azimuth"])
+        p["collars"].append(collar(hole, "alberta", hole, "alberta-10tm", float(r["E_10TM83"]), float(r["N_10TM83"]),
+                                   float(r["Elvtn_grnd"]), lineage, total_depth=total,
+                                   orientation=orientation(azimuth, dip, "unknown", inclination)))
+        p["surveys"].append(survey(f"ab-srv-{hole}", hole, 0.0, azimuth, dip, "recorded-collar-direction", lineage))
+        p["trajectories"].append(trajectory(hole, "collar-orientation", lineage, valid_to=total,
+                                            azimuth_assumption="source azimuth, north reference unknown"))
 
     geology = [r for r in archive(MEMBERS["intervals"]) if r["Data_src"] == REPORT]
     if len(geology) != EXPECTED["geology"] or any(r["DH_name"] not in holes for r in geology):
         raise ValueError("Alberta geology population drift or orphan")
     for r in geology:
         top, bottom = _number(r["Intrvl_top"]), _number(r["Intrvl_btm"])
-        kind = "event" if top is not None and top == bottom else "interval"
-        p["geology"].append({"id": f"ab-geo-{r['AGS_ID']}", "holeId": r["DH_name"], "kind": kind,
-                             "fromMd": top, "toMd": bottom,
-                             "rockType": r["Rock_type"].strip() or None, "lithoUnit": r["Litho_unit"].strip() or None,
-                             "material": r["Material"].strip() or None, "description": r["Intrvl_dsc"].strip() or None,
-                             "mappedCode": None, "mappingVersion": None,
+        event = top is not None and top == bottom
+        p["geology"].append({"id": f"ab-geo-{r['AGS_ID']}", "holeId": r["DH_name"],
+                             "kind": "event" if event else "interval",
+                             "fromMd": None if event else top, "toMd": None if event else bottom,
+                             "atMd": top if event else None,
+                             "codes": {"Rock_type": _code(r["Rock_type"]), "Litho_unit": _code(r["Litho_unit"]),
+                                       "Material": _code(r["Material"])},
+                             "description": _code(r["Intrvl_dsc"]), "mappedCode": None, "mappingVersion": None,
                              "sourceRefs": refs("DIG_2024_0022_0", f"intervals:{r['_row']}")})
 
     rows = [r for r in archive(MEMBERS["assays"]) if r["Data_src"] == REPORT]
@@ -136,15 +150,15 @@ def normalize(cache):
             top, bottom = _number(r["Smpl_int_t"]), _number(r["Smpl_int_b"])
             samples[key] = sid
             envelope = support(sid, r["DH_name"], top, bottom, lineage, r["Sample_nte"].strip() or None,
-                               unknown_weights=True)
+                               sample=r["Sample_nme"], unknown_weights=True)
             p["supports"].append(envelope)
         for c in populated:
             token = r[c]
             if token.strip() in MISSING:
                 continue
-            value, qualifier, threshold = _parse(token)
+            value, state, threshold = _parse(token)
             p["determinations"].append(determination(
-                f"{sid}:{c}:{r['AGS_ID']}", sid, c, value, token, _unit(c), lineage, qualifier=qualifier,
+                f"{sid}:{c}:{r['AGS_ID']}", sid, c, value, token, _unit(c), lineage, state=state,
                 limit=threshold, method=r["Methd_code"].strip() or None, lab=r["Lab_name"].strip() or None))
 
     cuzn = {}

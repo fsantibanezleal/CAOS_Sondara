@@ -34,19 +34,24 @@ from source_io import stable_hash
 SCHEMA = "drillhole.preprocessed/v1"
 COMPOSITE_LENGTHS = (1.0, 2.0, 5.0)
 MIN_COVERAGE = 1.0
-MEASURED_ROLES = ("recorded-collar-direction", "measured-single-shot")
+MEASURED_ROLES = ("recorded-collar-direction", "measured")
+EXTENSION = {"none": "error", "tangent": "tangent"}
+#: Source code columns the overlay reads for each named coverage.
+OVERLAY_FIELDS = {"anyLog": None, "lithoUnit": "Litho_unit", "rockType": "Rock_type"}
 UNKNOWN_CODES = {None, "", "-9999"}
 TOLERANCE = 1e-9
 
 RECIPE = {
     "trajectories": "GeoCond minimum curvature; assumed-vertical = one station (azimuth 0, dip -90) at the collar; "
                     "collar-orientation = the recorded direction at the collar; measured-stations = the recorded "
-                    "collar direction and the measured stations; tangent extension to total depth in every case",
+                    "collar direction and the measured stations (never compiled extensions); start and end "
+                    "extensions as the project declares them",
     "positions": "interval and envelope supports at start, mid and end measured depth on the arc; points at their depth",
     "compositing": "known continuous intervals only; per hole, fixed boundaries from the first sampled depth; lengths "
                    "1, 2 and 5 m; minimum coverage 1; last short composite kept as a residual; no bridging",
-    "overlay": "positive-length logs cut at every endpoint; two different known codes on one piece are a conflict; "
-               "codes '', '-9999' and null are unknown; coverage and proportions by GeoCond composite_categories",
+    "overlay": "positive-length logs cut at every endpoint; codes read verbatim from the Litho_unit and Rock_type "
+               "source columns; two different known codes on one piece are a conflict; codes '', '-9999' and null "
+               "are unknown; coverage and proportions by GeoCond composite_categories",
 }
 
 
@@ -55,8 +60,13 @@ def _vec(points):
 
 
 def build_surveys(project: dict) -> dict[str, Survey]:
-    """One GeoCond survey per collar, from the trajectory kind the ingest recorded."""
+    """One GeoCond survey per collar, from the trajectory kind and the extension policies the ingest recorded.
+
+    Stations are the recorded collar direction and the measured rows only; compiled extensions are never stations.
+    A first station below the collar is accepted only under a declared start extension.
+    """
     kinds = {t["holeId"]: t["kind"] for t in project["trajectories"]}
+    policies = {t["holeId"]: (t["startExtension"], t["endExtension"]) for t in project["trajectories"]}
     stations = defaultdict(list)
     for s in project["surveys"]:
         if s["role"] in MEASURED_ROLES:
@@ -71,14 +81,16 @@ def build_surveys(project: dict) -> dict[str, Survey]:
             rows = [s for s in stations[c["id"]] if s["role"] == "recorded-collar-direction"]
         elif kind == "measured-stations":
             rows = sorted(stations[c["id"]], key=lambda s: s["md"])
-            if not rows or rows[0]["md"] != 0 or rows[0]["role"] != "recorded-collar-direction":
-                raise ValueError(f"{c['id']}: measured stations need the recorded collar direction at MD 0")
+            if rows and rows[0]["md"] > 0 and policies[c["id"]][0] != "tangent":
+                raise ValueError(f"{c['id']}: the first station is below the collar and no start extension is declared")
         else:
             raise ValueError(f"{c['id']}: unknown trajectory kind {kind!r}")
         if not rows:
             raise ValueError(f"{c['id']}: no direction for a {kind} trajectory")
+        start, end = policies[c["id"]]
         surveys[c["id"]] = Survey(collar, [r["md"] for r in rows], [r["azimuth"] for r in rows],
-                                  [r["dip"] for r in rows], end_extension="tangent")
+                                  [r["dip"] for r in rows], start_extension=EXTENSION[start],
+                                  end_extension=EXTENSION[end])
     return surveys
 
 
@@ -95,7 +107,8 @@ def trajectory_records(project: dict, surveys: dict[str, Survey]) -> list[dict]:
             "stations": [{"md": float(md), "azimuth": float(az), "dip": float(dp), "position": _vec(p)}
                          for md, az, dp, p in zip(survey.measured_depth, survey.azimuth, survey.dip,
                                                   survey.station_points, strict=True)],
-            "endExtension": "tangent", "endMd": float(end_md), "endPosition": _vec(end.points[0]),
+            "endExtension": next(x["endExtension"] for x in project["trajectories"] if x["holeId"] == c["id"]),
+            "endMd": float(end_md), "endPosition": _vec(end.points[0]),
             "endExtended": bool(end.extended[0]),
             "maxDoglegDegrees": float(doglegs.max()) if len(doglegs) else 0.0,
         })
@@ -191,7 +204,7 @@ def _pieces(logs: list[dict], field: str) -> dict:
         cover = [g for g in logs if g["fromMd"] < hi - TOLERANCE and g["toMd"] > lo + TOLERANCE]
         if not cover:
             continue
-        codes = {"logged"} if field == "logged" else {g[field] for g in cover} - UNKNOWN_CODES
+        codes = {"logged"} if field is None else {g["codes"].get(field) for g in cover} - UNKNOWN_CODES
         out["starts"].append(lo)
         out["ends"].append(hi)
         if len(cover) > 1:
@@ -220,7 +233,7 @@ def overlay_envelopes(project: dict) -> dict:
     for g in project["geology"]:
         if g["kind"] == "interval":
             logs[g["holeId"]].append(g)
-    fields = {"anyLog": "logged", "lithoUnit": "lithoUnit", "rockType": "rockType"}
+    fields = OVERLAY_FIELDS
     pieces = {(hole, name): _pieces(rows, field) for hole, rows in logs.items() for name, field in fields.items()}
     conflicts = [{"holeId": hole, "field": name, **c}
                  for hole in logs for name in ("lithoUnit", "rockType") for c in pieces[(hole, name)]["conflicts"]]

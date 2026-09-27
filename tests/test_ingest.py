@@ -66,7 +66,7 @@ def test_alberta_keeps_native_sampling_support():
     issues = {i["code"]: len(i["rowIds"]) for i in p["issues"]}
     assert issues["OVERLAPPING_ENVELOPES"] == 85 and issues["COMPOSITE_NOTES"] == 79
     assert issues["LOI_METHODS_NOT_REPLICATES"] == 81
-    assert all(abs(c["orientation"]["inclinationSource"] - (90 + c["orientation"]["dip"])) < 1e-9 for c in p["collars"])
+    assert all(abs(c["orientation"]["sourceInclination"] - (90 + c["orientation"]["dip"])) < 1e-9 for c in p["collars"])
     assert {t["kind"] for t in p["trajectories"]} == {"collar-orientation"}
     assert Counter(g["kind"] for g in p["geology"])["event"] == 12
     assert all(d["value"] is not None or d["qualifier"] != "=" for d in p["determinations"])
@@ -77,13 +77,13 @@ def test_ntgs_is_one_measured_hole_with_censoring_kept_as_qualifiers():
 
     p = normalize()
     assert len(p["collars"]) == 1 and len(p["surveys"]) == 13 and len(p["supports"]) == 59
-    assert Counter(s["role"] for s in p["surveys"])["measured-single-shot"] == 11
+    assert Counter(s["role"] for s in p["surveys"])["measured"] == 11
     assert p["trajectories"][0]["kind"] == "measured-stations"
     censored = [d for d in p["determinations"] if d["qualifier"] in ("<", ">")]
     assert len(censored) == 850 and all(d["value"] is None and d["detectionLimit"] > 0 for d in censored)
     assert all(d["value"] is None or d["value"] >= 0 for d in p["determinations"])
     assert [w["count"] for w in p["waterfall"]] == [1892, 850, 118, 56]
-    assert p["frames"][0]["origin"]["sourceHorizontalCRS"] == "EPSG:28352"
+    assert p["frames"][0]["origin"]["sourceHorizontalCrs"] == "EPSG:28352"
 
 
 def test_ingest_writes_a_hashed_project_and_summary(tmp_path):
@@ -132,3 +132,20 @@ def test_the_contract_check_accepts_the_ingest_and_rejects_each_corruption(tmp_p
     assert broken(lambda p: p["trajectories"].clear())
     (tmp_path / "ntgs" / "summary.json").write_text("{}", encoding="utf-8")
     assert contract.main(["--derived", str(tmp_path)]) == 1  # a stale summary is caught
+
+
+def test_acquire_refuses_a_changed_source(tmp_path):
+    from source_io import acquire, digest
+
+    manifest = json.loads((ROOT / "data/sources/manifest.json").read_text(encoding="utf-8"))
+    bundled = next(f for f in manifest["files"] if "bundled" in f)
+    tampered = {**bundled, "sha256": "0" * 64}
+    with pytest.raises(ValueError, match="hash mismatch"):
+        acquire(tmp_path / "fresh", manifest={"files": [tampered]})
+    assert not (tmp_path / "fresh" / bundled["file"]).exists()  # nothing written for the refused source
+    cache = tmp_path / "cached"
+    cache.mkdir()
+    (cache / bundled["file"]).write_bytes(b"changed upstream")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        acquire(cache, manifest={"files": [bundled]})
+    assert digest(cache / bundled["file"]) != bundled["sha256"]
