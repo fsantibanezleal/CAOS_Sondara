@@ -21,25 +21,31 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 
 ## The canonical project (stage 2 output)
 
-`build/derived/<family>/project.json` follows `drillhole.project/v1`; `summary.json` beside it holds the project hash,
-the recipe and its hash, the table counts, the waterfall and the issue counts.
+`build/derived/<family>/project.json` follows `drillhole.project/v2`, defined normatively by
+[`schemas/project.schema.json`](../../schemas/project.schema.json); `summary.json` beside it holds the project hash,
+the recipe and its hash, the table counts, the waterfall and the issue counts. The source adapters and the manifest
+importer write the same contract.
 
 | Table | One row is |
 |---|---|
-| `frames` | a coordinate frame with its kind, unit, source CRS or definition, origin and stated assumptions |
-| `collars` | a hole: frame, x, y, z, total depth (null when the source gives none), observed depth, recorded orientation |
-| `surveys` | a survey record with its role; only rows with a measured role are measurements |
-| `trajectories` | how a hole's path is known: `measured-stations`, `collar-orientation` or `assumed-vertical` |
+| `frames` | a coordinate frame: kind (`projected-metric` or `local-metric`), unit, EPSG code or a written definition, vertical datum, the anchor of a local frame, stated assumptions |
+| `collars` | a hole: namespace and source identifier, frame, x, y, z, total depth (null when the source gives none), observed depth, recorded orientation with its azimuth reference and any source inclination |
+| `surveys` | a survey record: depth, azimuth, dip, azimuth reference, instrument and role (`recorded-collar-direction`, `measured`, `compiled-extension`) |
+| `trajectories` | how a hole's path is known (`measured-stations`, `collar-orientation`, `assumed-vertical`) and its declared start and end extensions (`none` or `tangent`) |
 | `analytes` | an analyte with its unit, the quantity it reports and its source column |
-| `supports` | a sample support: `interval` (known uniform length), `sampling-envelope` (unknown weights), `point` or `unknown` |
-| `determinations` | one analytical result: value, the raw source token, qualifier (`=`, `<` or `>`), detection limit, method, lab |
-| `geology` | a logged interval or point event, kept verbatim, with an empty slot for a versioned mapping |
+| `supports` | one physical sample: `interval` (known uniform length), `sampling-envelope` (unknown weights), `point` or `unknown`, with its sample identifier |
+| `determinations` | one result: value, the raw source token, state (`measured`, `censored-below`, `censored-above`, `missing`, `not-sampled`, `lost-core`, `sentinel`), qualifier, detection limit, method, lab, and whether it is an original, a repeat or a duplicate |
+| `geology` | a logged interval or an event, with every source code kept verbatim under its source column name |
+| `qc` | a control sample (standard or blank) and its results, with no hole and no coordinates |
+| `exclusions` | a record kept in the project but excluded from modeling, with the finding that excluded it |
 | `issues` | a QA finding: code, severity, the affected rows, what it means and the action taken |
+| `waterfall` | one reconciliation step and its count |
 
-`scripts/check_artifacts.py` enforces the contract on every ingested family: unique identifiers, every record on a known
-collar, support geometry consistent with its kind, censored results with a limit and no value, finite numbers, named
-issue rows, and a summary whose hash and counts match the project. The ingest tests also prove the check rejects each
-of those corruptions.
+`scripts/check_artifacts.py` validates the schema and then the rules a schema cannot state: unique identifiers, every
+record on a known collar, one trajectory per collar, support geometry consistent with its kind, determination states
+(a measured value with `=`, censoring as a qualifier with a positive limit and no value, any other state with
+neither), controls without supports, geology intervals and events, exclusions that name existing records, and a
+summary whose hash and counts match the project. The tests prove it rejects each of those corruptions.
 
 ## The preprocessed output (stage 3)
 

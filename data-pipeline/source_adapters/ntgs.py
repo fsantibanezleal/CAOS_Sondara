@@ -19,11 +19,28 @@ import json
 from collections import Counter
 from itertools import pairwise
 
-from source_adapters.common import determination, issue, localized, project, refs, source, support
+from source_adapters.common import (
+    collar,
+    determination,
+    frame,
+    issue,
+    localized,
+    project,
+    refs,
+    source,
+    support,
+    survey,
+    trajectory,
+)
 from source_io import ROOT, digest
 
 BUNDLE = ROOT / "data" / "sources" / "ntgs-12le002"
 EXPECTED = {"stations": 13, "measured": 11, "determinations": 1892, "analytes": 44, "samples": 59, "cuzn": 118}
+#: The bundle's source roles, and the canonical role and instrument each becomes.
+ROLES = {"recorded-collar-direction": ("recorded-collar-direction", None),
+         "measured-single-shot": ("measured", "Reflex EZ-Shot electronic single-shot"),
+         "compiled-terminal-extension": ("compiled-extension", None)}
+STATES = {"=": "measured", "<": "censored-below", ">": "censored-above"}
 
 
 def _rows(name):
@@ -50,14 +67,13 @@ def normalize(cache=None):
         sources,
         "ntgs-v1: bundled DIP043/DIP001 subset for 8440823_12LE002; local ENU at the source collar; eleven measured "
         "single-shot stations; below-detection results as qualifiers",
-        {"id": "ntgs-local-enu", "kind": "local-metric", "unit": "m", "horizontalCrs": None,
-         "origin": {"sourceProjected": origin["sourceProjected"], "sourceHorizontalCRS": origin["sourceHorizontalCRS"],
-                    "longitude": origin["longitude"], "latitude": origin["latitude"]},
-         "verticalDatum": None,
-         "assumptions": [("Local ground-distance east/north/up anchored at the declared source collar; no grid-scale "
-                          "distortion applied to measured depths."),
-                         "Azimuths are true-north bearings already corrected for 4 degrees of declination.",
-                         "Compiled elevation (SRTM-draped); the original report RL differs by 5.72 m."]},
+        frame("ntgs-local-enu", "local-metric",
+              origin={"sourceProjected": origin["sourceProjected"], "sourceHorizontalCrs": origin["sourceHorizontalCRS"],
+                      "longitude": origin["longitude"], "latitude": origin["latitude"]},
+              assumptions=[("Local ground-distance east/north/up anchored at the declared source collar; no grid-scale "
+                            "distortion applied to measured depths."),
+                           "Azimuths are true-north bearings already corrected for 4 degrees of declination.",
+                           "Compiled elevation (SRTM-draped); the original report RL differs by 5.72 m."]),
     )
     collars = _rows("collars.csv")
     surveys = _rows("surveys.csv")
@@ -66,20 +82,19 @@ def normalize(cache=None):
         raise ValueError("NTGS subset population drift")
     hole = collars[0]["holeId"]
     total = float(collars[0]["totalDepth"])
-    p["collars"].append({"id": hole, "sourceHoleId": "8440823_12LE002", "frameId": "ntgs-local-enu",
-                         "x": float(collars[0]["x"]), "y": float(collars[0]["y"]), "z": float(collars[0]["z"]),
-                         "totalDepth": total, "observedDepthMax": None, "orientation": None,
-                         "sourceRefs": refs("ntgs-12le002-collars.csv", collars[0]["sourceRow"])})
+    p["collars"].append(collar(hole, "ntgs", "8440823_12LE002", "ntgs-local-enu", float(collars[0]["x"]),
+                               float(collars[0]["y"]), float(collars[0]["z"]),
+                               refs("ntgs-12le002-collars.csv", collars[0]["sourceRow"]), total_depth=total))
     roles = Counter(s["role"] for s in surveys)
     if roles.get("measured-single-shot") != EXPECTED["measured"]:
         raise ValueError("NTGS measured station count drift")
-    for s in surveys:
-        p["surveys"].append({"holeId": hole, "md": float(s["md"]), "azimuth": float(s["azimuth"]), "dip": float(s["dip"]),
-                             "role": s["role"], "sourceRefs": refs("ntgs-12le002-surveys.csv", s["sourceRow"])})
-    p["trajectories"].append({"holeId": hole, "kind": "measured-stations", "method": "minimum-curvature",
-                              "validFromMd": 0.0, "validToMd": total, "azimuthAssumption": "true north",
-                              "extensionPolicy": "terminal record repeats the last measured orientation",
-                              "stationRoles": dict(roles), "sourceRefs": refs("ntgs-12le002-surveys.csv", "all")})
+    for i, s in enumerate(surveys):
+        role, instrument = ROLES[s["role"]]
+        p["surveys"].append(survey(f"nt-srv-{i}", hole, float(s["md"]), float(s["azimuth"]), float(s["dip"]), role,
+                                   refs("ntgs-12le002-surveys.csv", s["sourceRow"]), reference="true",
+                                   instrument=instrument))
+    p["trajectories"].append(trajectory(hole, "measured-stations", refs("ntgs-12le002-surveys.csv", "all"),
+                                        valid_to=total, azimuth_assumption="true north"))
     analytes = sorted({a["analyte"] for a in assays})
     if len(analytes) != EXPECTED["analytes"]:
         raise ValueError("NTGS analyte count drift")
@@ -94,12 +109,11 @@ def normalize(cache=None):
             seen[sid] = (float(a["from"]), float(a["to"]))
             p["supports"].append(support(sid, hole, float(a["from"]), float(a["to"]),
                                          refs("ntgs-12le002-assays.csv", a["sourceRow"]),
-                                         f"sample {a['sampleId']}, {a['sampleMethod']}"))
-        qualifier = a["qualifier"]
+                                         f"sample {a['sampleId']}, {a['sampleMethod']}", sample=a["sampleId"]))
         p["determinations"].append(determination(
             f"{sid}:{a['analyte']}", sid, a["analyte"], _float(a["value"]), a["sourceResultText"], a["unit"],
-            refs("ntgs-12le002-assays.csv", a["sourceRow"]), qualifier=qualifier, limit=_float(a["detectionLimit"]),
-            method=a["labMethod"], lab=None))
+            refs("ntgs-12le002-assays.csv", a["sourceRow"]), state=STATES[a["qualifier"]],
+            limit=_float(a["detectionLimit"]), method=a["labMethod"], lab=None))
     if len(seen) != EXPECTED["samples"]:
         raise ValueError("NTGS sample count drift")
     by_support = Counter(seen.values())
