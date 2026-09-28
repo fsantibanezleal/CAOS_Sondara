@@ -63,8 +63,9 @@ one whose recipe differs. Python pickles are never an import format.
   calibration and test holes, which a spatial split does not guarantee; its test coverage is what shows it.
 - **Controls.** For each method the selected configuration is also fitted (three seeds) on the training targets
   permuted among the training rows (seed 20260926): a model that learned the spatial signal must beat it on the
-  validation and test rows. For DeepKriging, the selected widths are also fitted on the position alone, without the
-  basis (the coordinate-only ablation). Both are reported, never published as predictions.
+  validation and test rows; at inference the KCN control receives the same permuted neighbour values it was trained
+  on. For DeepKriging, the selected widths are also fitted on the position alone, without the basis (the
+  coordinate-only ablation). Both are reported, never published as predictions.
 - **What a prediction row carries.** `id`, `method`, `status` (`estimated`, or `uninformed` with the reason),
   `mean` (the ensemble), `variance` (null), `seeds` (the three predictions), `spread`, and, per method, the support
   diagnostics: DeepKriging's distance to the nearest training row and whether the position lies outside the training
@@ -85,8 +86,8 @@ knot $\mathbf{c}_j$, $r_j = \lVert \mathbf{u} - \mathbf{c}_j \rVert / \theta$ an
 $$\phi(r) = \frac{(1-r)^6 (35 r^2 + 18 r + 3)}{3} \quad (0 \le r \le 1), \qquad \phi(r) = 0 \quad (r > 1).$$
 
 Columns that are zero on every training row are removed, and the retained knots are recorded. The graph computes the
-basis itself, so the exported model takes positions, and a NumPy oracle (`learned/features.py`) computes the same
-basis independently for the tests.
+basis itself in float32, so the exported model takes positions; a float64 NumPy oracle (`learned/features.py`)
+computes the same basis independently for the tests (they agree within about $10^{-6}$).
 
 **Network.** $f_\theta([\mathbf{u}, \phi_1(\mathbf{u}), \ldots, \phi_m(\mathbf{u})])$: dense ReLU layers with dropout,
 then a linear unit; the native value is $\mu_{train} + s_{train} f_\theta$.

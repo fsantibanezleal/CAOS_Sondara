@@ -33,8 +33,8 @@ def evaluated(tmp_path_factory):
     population = next(p["population"] for p in scheme["populations"] if p.get("model"))
     with pytest.MonkeyPatch.context() as patch:
         patch.setitem(stages.infer.VARIANT_POPULATIONS, identifier, ("hole-group", population))
-        run.infer(identifier, folder.parent)
-    run.evaluate(identifier, folder.parent)
+        run.infer(identifier, folder.parent, "continuous")
+    run.evaluate(identifier, folder.parent, "continuous")
     load = lambda name: json.loads((folder / f"{name}.json").read_text(encoding="utf-8"))
     return folder, identifier, population, {n: load(n) for n in ("project", "preprocessed", "dataset", "models",
                                                                  "predictions", "metrics")}

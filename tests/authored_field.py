@@ -92,8 +92,10 @@ def lithology_mapping(project_id):
                      "cell": [50.0, 50.0, 1.0], "shape": [5, 5, 20], "traceStep": 0.1, "majority": 0.5}}
 
 
-def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer"), lithology=False):
-    """Import the authored field and run the stages; returns the output folder and the project id."""
+def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer"), lithology=False,
+          lane="continuous"):
+    """Import the authored field and run the stages (train, infer and evaluate on ``lane``); returns the output folder
+    and the project id."""
     import run
     from source_adapters.manifest_import import run_import
 
@@ -101,5 +103,8 @@ def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer
     out = tmp_path / "derived"
     identifier = run_import(manifest, out)["project"]
     for stage in stages:
-        getattr(run, stage)(identifier, out)
+        if stage in ("train", "infer", "evaluate"):
+            getattr(run, stage)(identifier, out, lane)
+        else:
+            getattr(run, stage)(identifier, out)
     return out / identifier, identifier

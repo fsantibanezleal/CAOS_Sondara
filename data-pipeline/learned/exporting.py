@@ -1,9 +1,17 @@
-"""Audited ONNX bundles; user import never executes Python checkpoint objects."""
+"""Audited ONNX exports with parity on the held-out inputs; importing never executes a Python checkpoint.
+
+The torch.export exporter (the default since PyTorch 2.9; the TorchScript one is marked for removal) writes each
+node's Python stack trace, with local paths, into the node metadata: every metadata field is removed and every string
+in the file is scanned before the file is accepted. Design: docs/design/features/learned-regression/design.md, section 5.
+"""
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
+import re
 import time
 import zipfile
 from pathlib import Path
@@ -15,6 +23,13 @@ import torch
 from learned.contracts import save_json
 
 MAX_MODEL_BYTES = 8 * 1024 * 1024
+MAX_NODES = 2000
+OPSET = 18
+FORBIDDEN_OPS = ("Loop", "Scan", "If", "SequenceMap")
+FIXTURE_ROWS = 64
+#: A path or a source location in any string of an exported model.
+PATH_PATTERN = re.compile(r"([A-Za-z]:[\\/])|(/home/)|(/Users/)|(site-packages)|(File \")|(\.py\b)")
+RAW_MARKERS = (b"site-packages", b"_Repos", b"File \"")
 
 
 def digest(path: Path) -> dict:
@@ -22,79 +37,143 @@ def digest(path: Path) -> dict:
     return {"sha256": hashlib.sha256(value).hexdigest(), "bytes": len(value)}
 
 
+def _strings(model: onnx.ModelProto):
+    yield model.producer_name
+    yield model.producer_version
+    yield model.doc_string
+    for p in model.metadata_props:
+        yield p.key
+        yield p.value
+    graphs = [model.graph] + [f for f in model.functions]
+    for g in graphs:
+        yield getattr(g, "doc_string", "")
+        for p in getattr(g, "metadata_props", []):
+            yield p.key
+            yield p.value
+        for node in g.node:
+            yield node.name
+            yield node.doc_string
+            for p in node.metadata_props:
+                yield p.key
+                yield p.value
+    for v in list(model.graph.input) + list(model.graph.output) + list(model.graph.value_info):
+        yield v.name
+        yield v.doc_string
+    for t in model.graph.initializer:
+        yield t.name
+        yield t.doc_string
+
+
+def strip(model: onnx.ModelProto) -> onnx.ModelProto:
+    """Remove every doc string and metadata field; the manifest beside the file is the documentation."""
+    del model.metadata_props[:]
+    model.doc_string = ""
+    for g in [model.graph] + list(model.functions):
+        if hasattr(g, "metadata_props"):
+            del g.metadata_props[:]
+        if hasattr(g, "doc_string"):
+            g.doc_string = ""
+        for node in g.node:
+            node.doc_string = ""
+            del node.metadata_props[:]
+    for v in list(model.graph.input) + list(model.graph.output) + list(model.graph.value_info):
+        v.doc_string = ""
+        del v.metadata_props[:]
+    for t in model.graph.initializer:
+        t.doc_string = ""
+        del t.metadata_props[:]
+    return model
+
+
+def scan_paths(path: Path) -> list[str]:
+    """Every string of the model that looks like a path or a source location, and any raw path marker."""
+    model = onnx.load(path, load_external_data=False)
+    found = sorted({s for s in _strings(model) if s and PATH_PATTERN.search(s)})
+    raw = path.read_bytes()
+    found += [m.decode() for m in RAW_MARKERS if m in raw]
+    return found
+
+
 def audit_model(path: Path) -> dict:
     if path.stat().st_size > MAX_MODEL_BYTES:
-        raise ValueError("ONNX byte budget exceeded")
+        raise ValueError(f"{path.name}: {path.stat().st_size} bytes, over the {MAX_MODEL_BYTES} byte budget")
     model = onnx.load(path, load_external_data=False)
     if any(t.data_location == onnx.TensorProto.EXTERNAL for t in model.graph.initializer):
-        raise ValueError("external ONNX data is not an accepted model import")
+        raise ValueError("external ONNX data is not an accepted model")
+    if model.functions:
+        raise ValueError("local ONNX functions are not accepted")
     if any(node.domain not in ("", "ai.onnx") for node in model.graph.node):
-        raise ValueError("custom ONNX operations are not accepted")
-    if any(node.op_type in ("Loop", "Scan", "If", "SequenceMap") for node in model.graph.node):
-        raise ValueError("dynamic control-flow models are not accepted")
-    if len(model.graph.node) > 2000:
-        raise ValueError("ONNX graph budget exceeded")
+        raise ValueError("custom ONNX operators are not accepted")
+    if any(node.op_type in FORBIDDEN_OPS for node in model.graph.node):
+        raise ValueError("control-flow ONNX graphs are not accepted")
+    if len(model.graph.node) > MAX_NODES:
+        raise ValueError(f"{len(model.graph.node)} nodes, over the {MAX_NODES} node budget")
+    leaks = scan_paths(path)
+    if leaks:
+        raise ValueError(f"the model carries paths or source locations: {leaks[:3]}")
     onnx.checker.check_model(model, full_check=True)
     return digest(path) | {"operators": sorted({n.op_type for n in model.graph.node}),
-                           "nodes": len(model.graph.node), "opset": [(o.domain, o.version) for o in model.opset_import]}
+                           "nodes": len(model.graph.node),
+                           "opset": [[o.domain, o.version] for o in model.opset_import]}
 
 
-def export_model(model: torch.nn.Module, inputs: tuple[np.ndarray, ...], names: list[str],
-                 outputs: list[str], destination: Path, metadata: dict, *,
-                 absolute_tolerance: float, relative_tolerance: float = 2e-5) -> dict:
+def _run_torch(model, inputs, device, batch=4096):
+    model = model.to(device).eval()
+    with torch.no_grad():
+        out = [model(*(torch.as_tensor(x[s:s + batch], dtype=torch.float32, device=device) for x in inputs)).cpu()
+               for s in range(0, len(inputs[0]), batch)]
+    model.cpu()
+    return torch.cat(out).numpy().astype(np.float64)
+
+
+def export_model(model: torch.nn.Module, inputs: tuple[np.ndarray, ...], names: list[str], destination: Path,
+                 metadata: dict, *, tolerance: float) -> dict:
+    """Export ``model`` to ``destination/model.onnx`` and check it on every row of ``inputs`` (the held-out inputs).
+
+    ONNX Runtime on the CPU and, when present, PyTorch on CUDA must agree with PyTorch on the CPU within
+    ``tolerance`` (native units); the record and a fixture of the first rows go to ``parity.json``.
+    """
     destination.mkdir(parents=True, exist_ok=True)
     path = destination / "model.onnx"
-    cpu_model = model.cpu().eval()
-    cpu_inputs = tuple(torch.tensor(value, dtype=torch.float32) for value in inputs)
-    with torch.no_grad():
-        cpu_result = cpu_model(*cpu_inputs)
-    expected = cpu_result if isinstance(cpu_result, tuple) else (cpu_result,)
-    expected = [value.numpy() for value in expected]
-    torch.onnx.export(cpu_model, cpu_inputs, path, input_names=names, output_names=outputs,
-                      dynamic_axes={name: {0: "batch"} for name in names + outputs},
-                      opset_version=18, dynamo=False, external_data=False)
-    graph = onnx.load(path)
-    graph.doc_string = "Sondara independently implemented scientific model; see adjacent manifest."
-    graph.graph.doc_string = ""
-    for node in graph.graph.node:
-        node.doc_string = ""
-        del node.metadata_props[:]
-    del graph.metadata_props[:]
-    onnx.save(graph, path)
+    inputs = tuple(np.asarray(x, dtype=np.float32) for x in inputs)
+    model = model.cpu().eval()
+    sample_rows = max(2, min(FIXTURE_ROWS, len(inputs[0])))
+    sample = tuple(torch.as_tensor(np.resize(x, (sample_rows,) + x.shape[1:])) for x in inputs)
+    batch = torch.export.Dim("batch")
+    log = io.StringIO()
+    with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+        torch.onnx.export(model, sample, path, input_names=names, output_names=["value"], opset_version=OPSET,
+                          dynamo=True, external_data=False, dynamic_shapes=tuple({0: batch} for _ in names))
+    onnx.save(strip(onnx.load(path)), path)
     audit = audit_model(path)
+    expected = _run_torch(model, inputs, "cpu")
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
-    feeds = dict(zip(names, [x.astype(np.float32) for x in inputs], strict=True))
     started = time.perf_counter()
-    actual = session.run(None, feeds)
+    actual = np.concatenate([session.run(None, dict(zip(names, (x[s:s + 4096] for x in inputs), strict=True)))[0]
+                             for s in range(0, len(inputs[0]), 4096)]).astype(np.float64)
     seconds = time.perf_counter() - started
-    onnx_errors = []
-    for a, b in zip(expected, actual, strict=True):
-        np.testing.assert_allclose(a, b, atol=absolute_tolerance, rtol=relative_tolerance)
-        onnx_errors.append(float(np.max(np.abs(a - b))))
-    cuda_errors = None
+    onnx_error = float(np.max(np.abs(actual - expected))) if len(expected) else 0.0
+    cuda_error = None
     if torch.cuda.is_available():
-        with torch.no_grad():
-            cuda_result = cpu_model.cuda()(*(value.cuda() for value in cpu_inputs))
-        cuda_outputs = cuda_result if isinstance(cuda_result, tuple) else (cuda_result,)
-        cuda_errors = []
-        for a, b in zip(expected, cuda_outputs, strict=True):
-            array = b.cpu().numpy()
-            np.testing.assert_allclose(a, array, atol=absolute_tolerance, rtol=relative_tolerance)
-            cuda_errors.append(float(np.max(np.abs(a - array))))
-        cpu_model.cpu()
-    fixtures = {"schema": "sondara.onnx-parity.v1", "inputs": {
-        name: {"shape": list(value.shape), "data": value.astype(np.float32).reshape(-1).tolist()}
-        for name, value in feeds.items()}, "outputs": {
-        name: {"shape": list(value.shape), "data": value.reshape(-1).tolist()}
-        for name, value in zip(outputs, expected, strict=True)},
-        "absoluteTolerance": absolute_tolerance, "relativeTolerance": relative_tolerance,
-        "onnxCpuMaxAbsolute": onnx_errors, "torchCudaMaxAbsolute": cuda_errors,
-        "onnxInferenceSeconds": seconds}
-    save_json(destination / "parity.json", fixtures)
-    manifest = metadata | {"schema": "sondara.learned-model.v1", "model": audit,
-                           "inputs": names, "outputs": outputs, "dtype": "float32",
-                           "maximumBatch": 4096, "parity": digest(destination / "parity.json"),
-                           "importPolicy": "source-bound standard ONNX only; no Python pickle"}
+        cuda_error = float(np.max(np.abs(_run_torch(model, inputs, "cuda") - expected))) if len(expected) else 0.0
+    parity = {"schema": "sondara.onnx-parity/v1", "rows": len(expected), "tolerance": tolerance,
+              "unit": "native", "onnxCpuMaxAbsolute": onnx_error, "torchCudaMaxAbsolute": cuda_error,
+              "passed": onnx_error <= tolerance and (cuda_error is None or cuda_error <= tolerance),
+              "onnxSeconds": round(seconds, 4), "onnxRuntime": ort.__version__, "torch": torch.__version__,
+              "fixture": {"inputs": {n: {"shape": [min(FIXTURE_ROWS, len(x))] + list(x.shape[1:]),
+                                         "data": x[:FIXTURE_ROWS].reshape(-1).tolist()}
+                                     for n, x in zip(names, inputs, strict=True)},
+                          "outputs": {"value": expected[:FIXTURE_ROWS].tolist()}}}
+    save_json(destination / "parity.json", parity)
+    if not parity["passed"]:
+        raise ArithmeticError(f"{destination}: parity outside {tolerance:g} (ONNX {onnx_error:.3g}, CUDA {cuda_error})")
+    manifest = metadata | {"schema": "sondara.learned-model/v1", "model": audit, "inputs": {
+        n: {"shape": ["batch"] + list(x.shape[1:]), "dtype": "float32"} for n, x in zip(names, inputs, strict=True)},
+        "outputs": {"value": {"shape": ["batch"], "dtype": "float32", "unit": "native"}},
+        "parity": digest(destination / "parity.json") | {k: parity[k] for k in (
+            "rows", "tolerance", "onnxCpuMaxAbsolute", "torchCudaMaxAbsolute")},
+        "exporter": {"torch": torch.__version__, "onnx": onnx.__version__, "opset": OPSET, "path": "torch.export"},
+        "importPolicy": "standard ONNX bound to its project; no Python pickle"}
     save_json(destination / "manifest.json", manifest)
     with zipfile.ZipFile(destination / "portable-model.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for file in ("manifest.json", "model.onnx", "parity.json"):
@@ -105,26 +184,25 @@ def export_model(model: torch.nn.Module, inputs: tuple[np.ndarray, ...], names: 
 
 
 def validate_portable(path: Path) -> dict:
-    """Structural preflight used by local tooling; callers still check project binding."""
+    """Structural preflight of a portable model; the caller still checks its binding to the project."""
     with zipfile.ZipFile(path) as archive:
         expected = {"manifest.json", "model.onnx", "parity.json"}
         if len(archive.infolist()) != 3 or set(archive.namelist()) != expected:
-            raise ValueError("portable model must contain exactly the three known files")
+            raise ValueError("a portable model holds exactly manifest.json, model.onnx and parity.json")
         if any(i.file_size > MAX_MODEL_BYTES for i in archive.infolist()):
-            raise ValueError("portable model expanded byte budget exceeded")
+            raise ValueError("a portable model file is over the byte budget")
         manifest = json.loads(archive.read("manifest.json"))
-        if manifest.get("schema") != "sondara.learned-model.v1":
+        if manifest.get("schema") != "sondara.learned-model/v1":
             raise ValueError("unsupported portable model schema")
         raw = archive.read("model.onnx")
         if len(raw) != manifest["model"]["bytes"] or hashlib.sha256(raw).hexdigest() != manifest["model"]["sha256"]:
             raise ValueError("model hash mismatch")
         graph = onnx.load_model_from_string(raw)
-        if any(t.data_location == onnx.TensorProto.EXTERNAL for t in graph.graph.initializer):
-            raise ValueError("external model tensors are forbidden")
-        if any(n.domain not in ("", "ai.onnx") or n.op_type in ("Loop", "Scan", "If", "SequenceMap")
-               for n in graph.graph.node):
+        if any(t.data_location == onnx.TensorProto.EXTERNAL for t in graph.graph.initializer) or graph.functions:
+            raise ValueError("external tensors and local functions are not accepted")
+        if any(n.domain not in ("", "ai.onnx") or n.op_type in FORBIDDEN_OPS for n in graph.graph.node):
             raise ValueError("unsupported model graph")
-        if len(graph.graph.node) > 2000:
+        if len(graph.graph.node) > MAX_NODES:
             raise ValueError("graph budget exceeded")
         onnx.checker.check_model(graph, full_check=True)
         return manifest

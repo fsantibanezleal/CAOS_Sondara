@@ -25,8 +25,10 @@ the covariance models on training and validation rows (``stages/train.py``), and
 the eight classical methods (``stages/infer.py``). ``evaluate`` scores them against the test truths and rebuilds the
 scenario matrix ``<out>/scenarios.json`` (``stages/evaluate.py``, ``stages/scenarios.py``). For a family with a reviewed
 lithology mapping, the same three stages run the categorical lane (``stages/categorical.py``): conditioning and training
-images, SNESIM (MPSlib, ``scripts/build_mpslib.sh``) and Direct Sampling realizations, and their scores; ``--lane``
-runs one lane alone. Each stage checks the hash of
+images, SNESIM (MPSlib, ``scripts/build_mpslib.sh``) and Direct Sampling realizations, and their scores. The learned
+lane (``stages/learned.py``, PyTorch and ONNX, run in ``.venv-gpu``) trains DeepKriging and KCN on the same splits,
+predicts the same targets, exports each fit to ONNX with its parity, and ``evaluate`` scores them beside the
+classical methods. ``--lane`` runs one lane alone. Each stage checks the hash of
 its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
 outputs go to ``--out`` (default ``build/derived``).
 """
@@ -172,7 +174,17 @@ def _chain(family: str, out: Path):
     return target, project, pre, split
 
 
-LANES = ("all", "continuous", "categorical")
+LANES = ("all", "continuous", "categorical", "learned")
+
+
+def _learned_stages():
+    """The learned lane's stage module; it needs PyTorch, onnx and ONNX Runtime (requirements-gpu.txt)."""
+    try:
+        from stages import learned
+    except ImportError as error:
+        raise SystemExit(f"the learned lane needs PyTorch, onnx and ONNX Runtime ({error}); run it in .venv-gpu "
+                         "(requirements-gpu.txt), or pass --lane continuous or --lane categorical") from error
+    return learned
 
 
 def train(family: str, out: Path, lane: str = "all") -> dict:
@@ -182,6 +194,17 @@ def train(family: str, out: Path, lane: str = "all") -> dict:
     t0 = time.time()
     target, project, pre, split = _chain(family, out)
     summary = {"family": family}
+    if lane in ("all", "learned"):
+        learned = _learned_stages()
+        features_record = load_json(target / "features.json")
+        if features_record["inputDatasetSha256"] != stable_hash(split):
+            raise ValueError(f"{family}: features.json was computed from another dataset; run features again")
+        result = learned.train_learned(family, project, pre, split, features_record, target)
+        result["inputFeaturesSha256"] = stable_hash(features_record)
+        write_json(target / "learned-models.json", result)
+        fitted = [p for s in result["schemes"] for p in s["populations"]]
+        summary["learned"] = {"eligible": result["eligible"], "populations": len(fitted),
+                              "fitted": sum(p.get("status") == "fitted" for p in fitted)}
     if lane in ("all", "continuous"):
         features_record = load_json(target / "features.json")
         if features_record["inputDatasetSha256"] != stable_hash(split):
@@ -223,6 +246,16 @@ def infer(family: str, out: Path, lane: str = "all") -> dict:
         result["inputCategoricalModelsSha256"] = stable_hash(models)
         write_json(target / "categorical-predictions.json", result)
         summary["categorical"] = result["eligible"]
+    if lane in ("all", "learned"):
+        learned = _learned_stages()
+        models = load_json(target / "learned-models.json")
+        if models.get("inputDatasetSha256", stable_hash(split)) != stable_hash(split):
+            raise ValueError(f"{family}: learned-models.json was fitted on another dataset; run train again")
+        result = learned.infer_learned(models, project, pre, split, target)
+        result["inputLearnedModelsSha256"] = stable_hash(models)
+        result["inputDatasetSha256"] = stable_hash(split)
+        write_json(target / "learned-predictions.json", result)
+        summary["learned"] = result["eligible"]
     return {**summary, "seconds": round(time.time() - t0, 1)}
 
 
@@ -234,11 +267,19 @@ def evaluate(family: str, out: Path, lane: str = "all") -> dict:
     t0 = time.time()
     target, project, pre, split = _chain(family, out)
     summary = {"family": family}
-    if lane in ("all", "continuous"):
+    if lane in ("all", "continuous", "learned"):
         predictions, models = load_json(target / "predictions.json"), load_json(target / "models.json")
         if predictions["inputModelsSha256"] != stable_hash(models):
             raise ValueError(f"{family}: predictions.json came from other models; run infer again")
-        result = evaluate_family(family, project, pre, split, predictions, models)
+        learned = None
+        if (target / "learned-predictions.json").is_file():
+            learned = load_json(target / "learned-predictions.json")
+            if learned["inputDatasetSha256"] != stable_hash(split):
+                raise ValueError(f"{family}: learned-predictions.json was built on another dataset; run the learned "
+                                 "lane again")
+        elif lane in ("all", "learned"):
+            raise ValueError(f"{family}: learned-predictions.json is missing; run train and infer --lane learned")
+        result = evaluate_family(family, project, pre, split, predictions, models, learned=learned)
         write_json(target / "metrics.json", result)
         summary["eligible"] = result["eligible"]
     if lane in ("all", "categorical"):
@@ -264,7 +305,8 @@ def main(argv=None) -> int:
     parser.add_argument("--cache", type=Path, default=Path(os.environ.get("SONDARA_RAW", ROOT / "build" / "sources")))
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "derived")
     parser.add_argument("--lane", choices=LANES, default="all",
-                        help="train, infer and evaluate: the continuous lane, the categorical lane, or both")
+                        help="train, infer and evaluate: the continuous, categorical or learned lane, or all three "
+                             "(the learned lane needs .venv-gpu)")
     args = parser.parse_args(argv)
     if args.stage == "acquire":
         print(json.dumps(acquire(args.cache), indent=2))

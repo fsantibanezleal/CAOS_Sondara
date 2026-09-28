@@ -25,7 +25,8 @@ engine is the separate [GeoCond](https://pypi.org/project/geocond/) package, con
 | `stages/mps.py` | SNESIM through MPSlib's compiled `mps_snesim_tree` as a supervised subprocess, in the pinned parameter schema |
 | `stages/categorical.py` | The categorical lane in train, infer and evaluate: conditioning and images, SNESIM and zoned Direct Sampling realizations, scores, connectivity and hole connections |
 | `stages/scenarios.py` | The scenario matrix: every registered scenario resolved cell by cell to computed, verified or pending with its owner |
-| `learned/` | Contracts, features, networks, training, evaluation and ONNX export for the learned methods (unit SD-7) |
+| `stages/learned.py` | The learned lane in train, infer and evaluate: DeepKriging and KCN over their frozen searches with three seeds, validation selection, controls, the ensemble predictions and the ONNX exports with their parity |
+| `learned/` | The learned methods' parts: the model binding and seeds (`contracts.py`), training-only transforms and the NumPy oracles (`features.py`), the networks with their features in the graph (`networks.py`), resumable fits (`training.py`), the audited ONNX export and parity (`exporting.py`); `evaluation.py` holds the autoencoder's perturbations (unit SD-7b) |
 
 ## Setup and run
 
