@@ -4,6 +4,31 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.10.000], 2026-09-27
+
+### Added
+- The categorical lane (unit SD-6) inside `train`, `infer` and `evaluate` (`--lane` runs one lane alone), for the
+  Alberta logs: a reviewed lithology mapping (`data/interpretations/alberta-lithology-v1.json`) in five categories
+  after the stratigraphy of MAR_19860002 (Uranerz, Maybelle River, 1986), with rules by source code, named unit and
+  position and every unmapped code's reason; a 250 m x 250 m x 10 m grid in depth below the collar surface,
+  conditioned by the training holes with a majority rule and recorded conflicts; two labelled training images
+  (northwest high-strain fabric; gneiss domes) authored from the training holes.
+- SNESIM through MPSlib at the pinned commit a47718f: `scripts/build_mpslib.sh` and `.ps1` build it with a receipt,
+  `stages/mps.py` runs it as a supervised subprocess (through WSL on Windows) with soft data from the vertical
+  proportion curve. Direct Sampling through GeoCond 0.8.0 with one zone per depth layer.
+- Categorical evaluation: multi-category Brier and log scores and accuracy on the held-out holes' cells, against the
+  training proportions and the vertical proportion curve; proportions; connectivity per category (Renard and Allard
+  2013); hole-pair connections and their persistence across priors and engines.
+- `scripts/check_simulation.py`: the S10 and S11 checks recorded as `simulation-checks.json`, which the scenario matrix
+  reads; categorical checks in `scripts/check_artifacts.py`; requirements R-601 to R-614 with their tests; the MPSlib
+  framework card; the categorical figures; GeoCond 0.8.0; torch pinned for the GPU lane.
+- Results on the Alberta holes: every run beats the training proportions and the vertical proportion curve on the
+  Brier score (hole-group: SNESIM with the gneiss domes 0.359 against 0.464; margin: zoned Direct Sampling with the
+  gneiss domes 0.387 against 0.623), with the ranking reversing between splits; the cover connects in every run,
+  granitoid connections stay uncertain, and every run under-reproduces granitoid. S10 (total variation 0.011) and S11
+  (30,786 nodes, identical on CPU and CUDA) pass. The scenario matrix has 54 computed, 20 verified and 9 pending cells
+  (SD-7 and SD-8), none missing.
+
 ## [0.09.000], 2026-09-27
 
 ### Added
