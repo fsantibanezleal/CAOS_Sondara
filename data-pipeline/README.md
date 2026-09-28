@@ -20,6 +20,10 @@ engine is the separate [GeoCond](https://pypi.org/project/geocond/) package, con
 | `stages/train.py` | Candidate covariances selected on validation; residual, LMC, indicator and Gaussian-space covariances fitted with the selected structure |
 | `stages/infer.py` | Every method on every test target of each scheme and population, and the scenario variants |
 | `stages/evaluate.py` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration, MIK Brier and log scores, SGS fair CRPS and reproduction, receipts |
+| `stages/categories.py` | The reviewed lithology mapping, the collar surface, and the conditioning of a depth grid by logged intervals (majority rule, recorded conflicts) |
+| `stages/training_images.py` | The two labelled training images of the Alberta lane, authored from the training holes |
+| `stages/mps.py` | SNESIM through MPSlib's compiled `mps_snesim_tree` as a supervised subprocess, in the pinned parameter schema |
+| `stages/categorical.py` | The categorical lane in train, infer and evaluate: conditioning and images, SNESIM and zoned Direct Sampling realizations, scores, connectivity and hole connections |
 | `stages/scenarios.py` | The scenario matrix: every registered scenario resolved cell by cell to computed, verified or pending with its owner |
 | `learned/` | Contracts, features, networks, training, evaluation and ONNX export for the learned methods (unit SD-7) |
 

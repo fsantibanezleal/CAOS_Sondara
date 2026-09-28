@@ -16,7 +16,7 @@ side, as plain scripts. Sondara never re-implements a GeoCond method; it decides
 
 ## Install (exact, verified)
 
-`geocond==0.7.0` is pinned in `data-pipeline/requirements.txt` and installs from PyPI into `.venv-pipeline` with NumPy
+`geocond==0.8.0` is pinned in `data-pipeline/requirements.txt` and installs from PyPI into `.venv-pipeline` with NumPy
 and SciPy only. The optional `cuda` extra (`torch>=2.9,<3`) is needed only by the CUDA lanes, which the preprocess
 stage does not use.
 
@@ -39,7 +39,8 @@ composite_intervals([0, 1], [1, 3], [2.0, 5.0], fixed_boundaries(0, 3, 2), min_c
 | `features` (0.07.000) | `variogram` | training rows of each split | experimental direct and cross variograms |
 | `train`, `infer` (0.08.000; the structure rule of 0.09.000) | `variogram`, `covariance`, `kriging`, `neighborhood`, `baselines`, `probability`, `simulation` | training variograms and rows, validation rows, test targets | fitted and selected models, estimates with diagnostics, indicator probabilities, realizations |
 | `evaluate` (0.09.000) | none: the scores are Sondara's, on GeoCond's outputs | predictions, test and calibration truths | metrics, the scenario matrix |
-| SD-6, SD-7 (planned) | `direct_sampling`, `cuda` | categorical rows and training images; CUDA lanes | realizations, CPU and CUDA parity |
+| categorical lane (0.10.000) | `direct_sampling` with `zones` (0.8.0), `geometry` | depth-grid conditioning, training images, one zone per depth layer | realizations with candidate provenance, CPU and CUDA parity (S11) |
+| SD-7 (planned) | `cuda` | learned-method inputs | CUDA training lanes |
 
 The contracts, equations and the tests against independent references (R/gstat, PyKrige, GSTools, welleng,
 scikit-learn) are in GeoCond's [methods pages](https://github.com/fsantibanezleal/GeoCond/tree/main/docs/methods).
