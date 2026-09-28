@@ -216,12 +216,12 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
     for s in empty["scenarios"]:
         for c in s["cells"]:
             assert c["status"] == {"test": "verified", "pending": "pending"}.get(c["kind"], "missing"), (s["id"], c)
-            assert c["kind"] != "pending" or c["owner"] in ("SD-6", "SD-7", "SD-8")
+            assert c["kind"] != "pending" or c["owner"] in ("SD-7", "SD-8")
     assert any("missing" in e for e in contract.check_scenarios(empty, tmp_path))
 
     # Metrics shaped like the families' outputs: every cited method and variant resolves and cites its hash.
     def metrics(family):
-        cells = [c for cs in CELLS.values() for c in cs if c.get("family") == family and c["kind"] != "artifact"]
+        cells = [c for cs in CELLS.values() for c in cs if c.get("family") == family and c["kind"] in ("metric", "variant")]
         schemes = {}
         for c in cells:
             population = schemes.setdefault(c["scheme"], {}).setdefault(
@@ -238,13 +238,32 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
         for name in ("project.json", "preprocessed.json"):
             (tmp_path / family / name).write_text("{}", encoding="utf-8")
         (tmp_path / family / "metrics.json").write_text(json.dumps(metrics(family)), encoding="utf-8")
+    # The categorical lane's outputs and the S10/S11 receipt, shaped like the stages write them.
+    runs = [{"prior": c["prior"], "engine": c["engine"], "brierSkill": {"trainingProportions": 0.3},
+             "all": {"n": 5, "brier": 0.4, "logScore": 0.9, "accuracy": 0.7}}
+            for cs in CELLS.values() for c in cs if c["kind"] == "categorical"]
+    categorical = {"eligible": True, "schemes": [{"scheme": "hole-group", "runs": runs}]}
+    (tmp_path / "alberta" / "categorical-metrics.json").write_text(json.dumps(categorical), encoding="utf-8")
+    (tmp_path / "alberta" / "categorical-models.json").write_text(
+        json.dumps({"eligible": True, "mapping": {"mappingId": "m", "counts": {"0": 1}}}), encoding="utf-8")
+    (tmp_path / "simulation-checks.json").write_text(json.dumps({"s10": {"passed": True}, "s11": {"passed": True}}),
+                                                     encoding="utf-8")
     matrix = scenario_matrix(tmp_path)
     assert matrix["counts"]["missing"] == 0 and contract.check_scenarios(matrix, tmp_path) == []
     assert sum(matrix["counts"].values()) == sum(len(c) for c in CELLS.values())
     states = {s["id"]: s["state"] for s in matrix["scenarios"]}
-    assert states["R01"] == "complete" and states["R10"] == "partial" and states["A07"] == "pending"
+    assert states["R01"] == "complete" and states["R10"] == "partial" and states["R12"] == "pending"
+    assert states["A07"] == "complete" and states["S11"] == "complete"
     assert matrix["pendingByOwner"] == {o: sum(c.get("owner") == o for cs in CELLS.values() for c in cs)
-                                        for o in ("SD-6", "SD-7", "SD-8")}
+                                        for o in ("SD-7", "SD-8")}
+    failed = scenario_matrix  # a failed receipt is missing, never computed
+    (tmp_path / "simulation-checks.json").write_text(
+        json.dumps({"s10": {"passed": True}, "s11": {"passed": False, "reason": "no CUDA device"}}), encoding="utf-8")
+    s11 = next(s for s in failed(tmp_path)["scenarios"] if s["id"] == "S11")
+    assert s11["state"] == "missing" and any(c.get("reason") == "no CUDA device" for c in s11["cells"])
+    categorical["schemes"][0]["runs"][0]["all"]["brier"] = 0.5
+    (tmp_path / "alberta" / "categorical-metrics.json").write_text(json.dumps(categorical), encoding="utf-8")
+    assert any("stale categorical" in e for e in contract.check_scenarios(matrix, tmp_path))
     stale = metrics("rocklea")
     stale["schemes"][0]["populations"][0]["methods"]["ordinary-kriging"]["common"]["rmse"] = 9.9
     (tmp_path / "rocklea" / "metrics.json").write_text(json.dumps(stale), encoding="utf-8")

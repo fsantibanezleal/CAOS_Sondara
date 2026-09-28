@@ -19,9 +19,12 @@ Pin nothing here, versions live in `requirements-*.txt`.
 
 | Script | What it enforces |
 |---|---|
-| `check_artifacts.py` | Every family in `build/derived`, through its last stage: the canonical project (`drillhole.project/v2`) with a matching summary, then the preprocessed, dataset, features, models, predictions and metrics outputs, each against the hash of its input and its own rules, and the scenario matrix (no missing, ownerless or stale cell). |
+| `check_artifacts.py` | Every family in `build/derived`, through its last stage: the canonical project (`drillhole.project/v2`) with a matching summary, then the preprocessed, dataset, features, models, predictions and metrics outputs and the categorical models, predictions and metrics (with every training image and realization file against its hash), each against the hash of its input and its own rules, and the scenario matrix (no missing, ownerless or stale cell). |
 | `figures/preprocess_figures.py` | Draws the preprocess figures of the docs (light and dark SVG) from the real outputs in `build/derived`. |
 | `figures/features_figures.py` | Draws the variogram figure of the docs from `rocklea/features.json`. |
+| `build_mpslib.sh`, `build_mpslib.ps1` | Build MPSlib's SNESIM executables from the pinned commit (Linux or WSL; the `.ps1` calls the `.sh` through WSL) into `$SONDARA_MPSLIB` or `build/mpslib`, with a receipt of the commit, compiler and executable hashes. |
+| `check_simulation.py` | Run S10 (SNESIM small-pattern frequencies) and S11 (Direct Sampling CPU and CUDA candidate identity on the Alberta case) in `.venv-gpu`, and write `simulation-checks.json`, which the scenario matrix reads. |
+| `figures/categorical_figures.py` | Draws the categorical figures of the docs (the two training images; sections of the most probable category per engine and prior) from the Alberta categorical outputs. |
 | `figures/evaluate_figures.py` | Draws the evaluation figures of the docs (methods and variants against OK, SGS reproduction) from `rocklea/metrics.json`. |
 | `fixtures/author_fixtures.py` | Writes the authored fixtures F01 to F42 and their registry (`data/fixtures/`), deterministically. |
 | `check_sdd.py` | The design document exists and every requirement names a gate that exists (ADR-0075). |

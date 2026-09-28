@@ -1,7 +1,9 @@
 """The scenario matrix: every registered scenario, cell by cell, computed, verified or pending with its owner.
 
-A cell is a method or variant scored in a family's metrics, a stage output the scenario reads, a test that verifies an
-authored truth, or a pending cell with the unit that will compute it. Computed cells cite the metrics they come from by
+A cell is a method or variant scored in a family's metrics, a categorical run scored in its categorical metrics, a
+stage output the scenario reads, a test that verifies an authored truth, a check recorded as passed in
+``simulation-checks.json`` (S10 and S11, whose tests skip without MPSlib or CUDA), or a pending cell with the unit that
+will compute it. Computed cells cite the metrics they come from by
 hash, so a stale matrix is detectable. Nothing is marked computed without a metric behind it.
 """
 
@@ -39,6 +41,18 @@ def _test(gate):
     return {"kind": "test", "gate": gate}
 
 
+def _categorical(family, scheme, prior, engine):
+    return {"kind": "categorical", "family": family, "scheme": scheme, "prior": prior, "engine": engine}
+
+
+def _receipt(check):
+    return {"kind": "receipt", "check": check}
+
+
+PRIORS = ("nw-high-strain", "gneiss-domes")
+C = "tests/test_categorical.py::"
+
+
 LEARNED = [_pending("SD-7", "DeepKriging"), _pending("SD-7", "KCN")]
 CELLS = {
     "R01": [_m("rocklea", "hole-group", R1, m) for m in ("nearest-neighbour", "inverse-distance", "ordinary-kriging")],
@@ -59,11 +73,11 @@ CELLS = {
     "A02": [_artifact("alberta", "preprocess", "176 envelope positions on 22 collar projections"),
             _pending("SD-8", "the exported envelope view")],
     "A03": [_m("alberta", "hole-group", AB, "ordinary-kriging"), _m("alberta", "hole-group", AB, "ordinary-cokriging")],
-    "A04": [_pending("SD-6", "the reviewed lithology mapping for categorical simulation")],
+    "A04": [{"kind": "categorical-mapping", "family": "alberta"}, _test(C + "test_the_mapping_applies_declared_rules_only")],
     "A05": [_artifact("alberta", "preprocess", "envelope and log overlay")],
     "A06": [_m("alberta", "hole-group", AB, m) for m in METHODS],
-    "A07": [_pending("SD-6", "SNESIM under two labelled priors")],
-    "A08": [_pending("SD-6", "Direct Sampling realizations and conflicts")],
+    "A07": [_categorical("alberta", "hole-group", prior, "snesim") for prior in PRIORS],
+    "A08": [_categorical("alberta", "hole-group", prior, "direct-sampling") for prior in PRIORS],
     "S01": [_test("tests/test_import.py::test_analytic_trajectories"),
             _test("tests/test_import.py::test_dip_conventions_give_the_same_trace")],
     "S02": [_test("tests/test_import.py::test_analytic_trajectories"),
@@ -79,8 +93,8 @@ CELLS = {
     "S07": [_test(T + "test_cokriging_reduces_and_matches_the_analytic_case")],
     "S08": [_test(T + "test_invalid_models_and_systems_fail_honestly")],
     "S09": [_test(T + "test_block_quadrature_converges")],
-    "S10": [_pending("SD-6", "exact small categorical training-image frequencies")],
-    "S11": [_pending("SD-6", "CPU and CUDA Direct Sampling candidate identity in the product")],
+    "S10": [_test(C + "test_snesim_reproduces_small_pattern_frequencies"), _receipt("s10")],
+    "S11": [_test(C + "test_direct_sampling_cpu_and_cuda_agree_in_the_product"), _receipt("s11")],
     "S12": [_test("tests/test_import.py::test_split_and_reordered_files_equal_the_consolidated_import"),
             _test("tests/test_import.py::test_an_interrupted_import_leaves_the_previous_project"),
             _pending("SD-8", "export and re-import round trip")],
@@ -97,10 +111,39 @@ def _summary(scores: dict) -> dict:
     return {k: scores.get(k) for k in ("n", "rmse", "mae", "bias")}
 
 
+def _read(path):
+    path = Path(path)
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
 def resolve(cell, metrics, out_dir) -> dict:
     kind = cell["kind"]
     if kind == "pending":
         return {**cell, "status": "pending"}
+    if kind == "categorical-mapping":
+        models = _read(Path(out_dir) / cell["family"] / "categorical-models.json")
+        if not models or not models.get("eligible"):
+            return {**cell, "status": "missing", "reason": "no eligible categorical models"}
+        return {**cell, "status": "computed", "summary": {"mappingId": models["mapping"]["mappingId"],
+                                                          "counts": models["mapping"]["counts"]}}
+    if kind == "categorical":
+        record = _read(Path(out_dir) / cell["family"] / "categorical-metrics.json")
+        if not record or not record.get("eligible"):
+            return {**cell, "status": "missing", "reason": "no categorical metrics for the family"}
+        try:
+            scheme = next(s for s in record["schemes"] if s["scheme"] == cell["scheme"])
+            run = next(r for r in scheme["runs"] if (r["prior"], r["engine"]) == (cell["prior"], cell["engine"]))
+        except StopIteration:
+            return {**cell, "status": "missing", "reason": "not in the categorical metrics"}
+        return {**cell, "status": "computed", "metricsSha256": stable_hash(record),
+                "summary": {**{k: run["all"].get(k) for k in ("n", "brier", "logScore", "accuracy")},
+                            "brierSkill": run["brierSkill"]}}
+    if kind == "receipt":
+        receipt = _read(Path(out_dir) / "simulation-checks.json")
+        check = (receipt or {}).get(cell["check"])
+        if not check or not check.get("passed"):
+            return {**cell, "status": "missing", "reason": (check or {}).get("reason", "no passing receipt")}
+        return {**cell, "status": "computed", "receiptSha256": stable_hash(receipt)}
     if kind == "test":
         return {**cell, "status": "verified" if _gate_exists(cell["gate"]) else "missing"}
     if kind == "artifact":

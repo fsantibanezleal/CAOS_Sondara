@@ -18,6 +18,7 @@ output the later stages would misread.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -394,6 +395,125 @@ def check_scenarios(matrix: dict, out_dir: Path) -> list[str]:
             if c["status"] == "computed" and c["kind"] in ("metric", "variant") \
                     and c.get("metricsSha256") != current.get(c["family"]):
                 errors.append(f"{s['id']}: a computed cell cites stale metrics")
+            if c["status"] == "computed" and c["kind"] == "categorical":
+                path = Path(out_dir) / c["family"] / "categorical-metrics.json"
+                now = stable_hash(json.loads(path.read_text(encoding="utf-8"))) if path.is_file() else None
+                if c.get("metricsSha256") != now:
+                    errors.append(f"{s['id']}: a computed cell cites stale categorical metrics")
+    return errors
+
+
+def _array_sha(array) -> str:
+    import numpy as np
+
+    a = np.ascontiguousarray(array)
+    return hashlib.sha256(f"{a.dtype}{a.shape}".encode() + a.tobytes()).hexdigest()
+
+
+def check_categorical_models(models: dict, folder: Path, project: dict | None = None,
+                             dataset: dict | None = None) -> list[str]:
+    """Return every violation of a categorical models output: inputs, a mapping gap, the conditioning, the TIs."""
+    import numpy as np
+
+    errors = []
+    if project is not None and models.get("inputProjectSha256") != stable_hash(project):
+        errors.append("categorical models were built from another project")
+    if dataset is not None and models.get("inputDatasetSha256") != stable_hash(dataset):
+        errors.append("categorical models were built from another dataset")
+    if not models.get("eligible"):
+        return errors if models.get("reason") else [*errors, "an ineligible categorical lane states no reason"]
+    codes = {c["code"] for c in models["categories"]}
+    rows = models["mapping"]["rows"]
+    if project is not None and sorted(r["geologyId"] for r in rows) != sorted(g["id"] for g in project["geology"]):
+        errors.append("the mapping does not cover every geology row exactly once")
+    for r in rows:
+        if r["category"] is None and not r["reason"]:
+            errors.append(f"{r['geologyId']}: unmapped without a reason")
+        if r["reason"] == "no rule assigns this code":
+            errors.append(f"{r['geologyId']}: no rule assigns the code {r['codes']}")
+        if r["category"] is not None and r["category"] not in codes:
+            errors.append(f"{r['geologyId']}: category {r['category']} is not declared")
+    shape = tuple(models["grid"]["shape"])
+    for s in models["schemes"]:
+        hard = s["conditioning"]["hard"]
+        cells = [tuple(h["cell"]) for h in hard]
+        if len(set(cells)) != len(cells):
+            errors.append(f"{s['scheme']}: a cell is conditioned twice")
+        if any(not all(0 <= c[i] < shape[i] for i in range(3)) for c in cells):
+            errors.append(f"{s['scheme']}: a conditioning cell lies outside the grid")
+        if any(h["category"] not in codes for h in hard):
+            errors.append(f"{s['scheme']}: a conditioning category is not declared")
+        if any(len(c["candidates"]) < 2 for c in s["conditioning"]["conflicts"]):
+            errors.append(f"{s['scheme']}: a conflict has fewer than two candidates")
+        for image in s["trainingImages"]:
+            file = folder / image["file"]
+            if not file.is_file():
+                errors.append(f"{image['file']} is missing")
+                continue
+            ti = np.load(file)
+            if hashlib.sha256(np.ascontiguousarray(ti).tobytes()).hexdigest() != image["sha256"]:
+                errors.append(f"{image['file']} does not match its record")
+            if ti.shape[2] != shape[2]:
+                errors.append(f"{image['file']} is not as deep as the grid")
+    return errors
+
+
+def check_categorical_predictions(predictions: dict, models: dict, folder: Path) -> list[str]:
+    """Return every violation of a categorical predictions output: its input, every run present, files, hard data."""
+    import numpy as np
+
+    if predictions.get("inputCategoricalModelsSha256") != stable_hash(models):
+        return ["categorical predictions come from other models"]
+    if not predictions.get("eligible"):
+        return [] if predictions.get("reason") else ["ineligible categorical predictions state no reason"]
+    errors = []
+    expected = {(s["scheme"], i["prior"], e) for s in models["schemes"] for i in s["trainingImages"]
+                for e in predictions["engines"]}
+    got = {(r["scheme"], r["prior"], r["engine"]) for r in predictions["runs"]}
+    if got != expected:
+        errors.append(f"runs missing: {sorted(expected - got)[:3]}")
+    counts = {r["realizations"] for r in predictions["runs"]}
+    if len(counts) > 1:
+        errors.append(f"the engines ran different numbers of realizations {sorted(counts)}")
+    for r in predictions["runs"]:
+        label = f"{r['scheme']}/{r['prior']}/{r['engine']}"
+        if not r["hardHonoured"]:
+            errors.append(f"{label}: a realization changed a conditioning cell")
+        file = folder / r["file"]
+        if not file.is_file():
+            errors.append(f"{label}: {r['file']} is missing")
+        elif _array_sha(np.load(file)) != r["sha256"]:
+            errors.append(f"{label}: {r['file']} does not match its record")
+    return errors
+
+
+def check_categorical_metrics(metrics: dict, predictions: dict) -> list[str]:
+    if metrics.get("inputCategoricalPredictionsSha256") != stable_hash(predictions):
+        return ["categorical metrics were computed from other predictions"]
+    if not metrics.get("eligible"):
+        return []
+    scored = {(s["scheme"], r["prior"], r["engine"]) for s in metrics["schemes"] for r in s["runs"]}
+    expected = {(r["scheme"], r["prior"], r["engine"]) for r in predictions["runs"]}
+    return [] if scored == expected else [f"categorical runs not scored: {sorted(expected - scored)[:3]}"]
+
+
+def check_categorical(folder: Path) -> list[str]:
+    """The categorical chain of a family folder, as far as its outputs go."""
+    path = folder / "categorical-models.json"
+    if not path.is_file():
+        return []
+    project = json.loads((folder / "project.json").read_text(encoding="utf-8"))
+    dataset_path = folder / "dataset.json"
+    dataset = json.loads(dataset_path.read_text(encoding="utf-8")) if dataset_path.is_file() else None
+    models = json.loads(path.read_text(encoding="utf-8"))
+    errors = check_categorical_models(models, folder, project, dataset)
+    predictions_path = folder / "categorical-predictions.json"
+    if predictions_path.is_file():
+        predictions = json.loads(predictions_path.read_text(encoding="utf-8"))
+        errors += check_categorical_predictions(predictions, models, folder)
+        metrics_path = folder / "categorical-metrics.json"
+        if metrics_path.is_file():
+            errors += check_categorical_metrics(json.loads(metrics_path.read_text(encoding="utf-8")), predictions)
     return errors
 
 
@@ -433,6 +553,7 @@ def check_family(folder: Path) -> list[str]:
                         metrics_path = folder / "metrics.json"
                         if metrics_path.is_file():
                             errors += check_metrics(json.loads(metrics_path.read_text(encoding="utf-8")), predictions)
+        errors += check_categorical(folder)
     return [f"{folder.name}: {e}" for e in errors]
 
 
