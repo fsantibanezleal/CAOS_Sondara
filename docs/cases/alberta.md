@@ -6,6 +6,14 @@ acknowledgement of the Alberta Energy Regulator / Alberta Geological Survey. Son
 archive's three tables are tab-separated Windows-1252 with multiline quoted descriptions; they are read member by member
 without extraction, decoded with the declared encoding, and joined on `(Data_src, DH_name)`.
 
+**The project.** MAR_19860002 is Uranerz Exploration and Mining's assessment report for the Maybelle River project
+(project 71-42, permits 6884100001, 6884100002 and 6884120001; work of October 1984 to July 1986, compiled by R. G.
+Orr), in the western Athabasca Basin of northeastern Alberta. Its stratigraphy table lists glacial drift over patchy
+Middle Devonian dolomites and sandstones, the Athabasca Group (Manitou Falls Formation, 0 to 122.3 m, and Fair Point
+Formation, 0 to 39.3 m, in the project's drilling), an unconformity, and a basement of Aphebian granitoids and
+metasediments and Archean granite gneisses. The basement is known only from drilling: "there is no known outcrop within
+the project area".
+
 ## What the ingest keeps
 
 | Quantity | Count |
@@ -96,6 +104,45 @@ the drilled area, 11.15 at the margin) beyond wide hole-block intervals, and Zn 
 variances are about five times too large (variance scale 0.19, from two calibration holes), MIK has no skill, and
 the Gaussian-space model's sill (1.87) makes the SGS realizations twice as variable as the truths. These are weak
 evidence, as the fits are. Tables and caveats: [model evaluation](../architecture/06_model-evaluation.md).
+
+## The reviewed lithology mapping (A04)
+
+The logs keep three fields: `Rock_type` (6 values, 72 of 150 rows missing), `Litho_unit` (42 values and `-9999`), and a
+free description, which names the unit where the codes are missing ("Unit: Devonian", "Unit: Athabasca").
+`data/interpretations/alberta-lithology-v1.json` maps them to five categories that follow the report's stratigraphy,
+by ordered rules, and leaves the source codes unchanged:
+
+| Category | Rows | Logged length | Rules |
+|---|---:|---:|---|
+| 0 overburden | 22 | 827.0 m | the code `overburden` |
+| 1 Devonian | 21 | 494.4 m | a description beginning "Unit: Devonian" (20); a dolomitic sandstone above logged Athabasca (MR-03) |
+| 2 Athabasca Group | 19 | 1,008.3 m | a description beginning "Unit: Athabasca" (17); a conglomerate directly above the basement or the logged unconformity (MR-01, MR-03) |
+| 3 basement gneiss | 48 | 1,094.1 m | 26 gneiss, migmatite, mylonite and amphibolite codes (47); a quartzite below the logged unconformity (MR-04) |
+| 4 basement granitoid | 20 | 551.4 m | `granitoid`, `basement granitoid`, `pegmatoid`, `granitoid / pegmatoid` |
+
+Twenty rows stay unmapped with their reason: the 12 point events (unconformity contacts and ends of hole) are events,
+not volumes; six intervals name both basement categories (`granitoid and pelitic gneiss` and five like it); MR-11's
+`basement` is neither gneiss nor granitoid; and MR-08 logs 69.0 to 124.9 m with no code and no description. The mapping
+is an interpretation with a version and a hash; every categorical output records it, so an edit invalidates them.
+
+## Categorical simulation (A07, A08)
+
+The mapped intervals condition a grid of 250 m x 250 m x 10 m cells in depth below the collar surface (34 x 38 x 24
+cells): a cell takes the category holding more than half of its logged length, and the few cells where no category
+does are recorded conflicts (one on the hole-group split, in MR-22, and one more on the margin, in MR-15). Two training
+images are authored from the training holes: both share the layered cover, with thickness fields whose means and
+spreads are the training holes' (Athabasca 39.5 m on average, absent in 3 of 12), and differ in the basement, where
+granitoid forms steep bands along the northwest trend of the Maybelle River high-strain zone (GSC Bulletin 588) or
+rounded bodies (the report's "mantled gneiss domes"). SNESIM (MPSlib) and zoned Direct Sampling (GeoCond) each draw 32
+realizations per image and split.
+
+On the three held-out holes of each split, every run beats both references on the Brier score: on the hole-group split
+SNESIM with the gneiss domes scores 0.359 against 0.464 for the vertical proportion curve, and on the margin zoned
+Direct Sampling with the gneiss domes scores 0.387 against 0.623. The ranking of engines and priors reverses between the
+splits, and three holes cannot separate them. The cover is one connected body in every run; granitoid bodies between
+holes stay uncertain (one persistent pair per split); MR-22's basement gneiss joins its neighbours' under one prior and
+not the other. Every run under-reproduces granitoid (0.06 to 0.12 of the grid against 0.15 to 0.21 in the images).
+Tables, figures and limits: [model evaluation](../architecture/06_model-evaluation.md).
 
 ## What it can and cannot answer
 

@@ -13,9 +13,9 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 3 | `preprocess` | Exact desurvey, support positions, compositing, the log overlay and the modeling populations, through GeoCond | 0.04.000 (Rocklea, Alberta, NTGS) |
 | 4 | `dataset` | Frozen hole-group, spatial-margin and declared train, validation, calibration and test assignments; every derivative stays with its hole | 0.07.000 |
 | 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
-| 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; the learned models come with SD-7 | 0.08.000 (classical) |
-| 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM, Direct Sampling and the learned methods come with SD-6 and SD-7 | 0.08.000 (classical) |
-| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; the scenario matrix | 0.09.000 (classical) |
+| 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; the learned models come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
+| 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM and Direct Sampling realizations for Alberta; the learned methods come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
+| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; categorical Brier and log scores, proportions, connectivity and hole connections for Alberta; the scenario matrix | 0.09.000 (classical); 0.10.000 (categorical) |
 | 9 | `export` | Arrow and Parquet tables, typed geometry, tiled fields, the model registry, metrics and an immutable manifest | planned |
 | 10 | `validate` | Source identity, every expected method, case and variant cell, masks, seeds, license attribution and offline and live parity | planned |
 
@@ -132,6 +132,27 @@ common targets, the paired comparison with OK, the calibration, MIK and SGS scor
 receipt with the seeds, plan, engine versions and hashes. `scenarios.json` (`drillhole.scenarios/v1`) resolves the 32
 registered scenarios cell by cell. Both are checked by `scripts/check_artifacts.py`, and the definitions, results and
 limits are on [the model-evaluation page](06_model-evaluation.md).
+
+## The categorical lane (stages 6 to 8, Alberta)
+
+A family with a reviewed lithology mapping (`data/interpretations/<family>-lithology-v1.json`) also runs a categorical
+lane inside `train`, `infer` and `evaluate` (`--lane categorical` runs it alone). The design is
+[the categorical-simulation design](../design/features/categorical-simulation/design.md); the method choices are on
+[the MPSlib card](../frameworks/02_mpslib/mpslib.md) and [the GeoCond card](../frameworks/01_geocond/geocond.md).
+
+| Output | Holds | Rule |
+|---|---|---|
+| `categorical-models.json` (`drillhole.categorical-models/v1`) | the mapping table (every geology row with its category and rule, or its reason), the grid, and per split scheme the conditioning (hard cells, conflicts, mixed cells), the cover statistics, the granitoid share, the vertical proportion curve and two training images | conditioning from the training holes only; a cell takes a category holding more than half of its mapped length; both images authored from those holes |
+| `categorical/ti-<scheme>-<prior>.npy` | the training images, uint8 codes, (x, y, depth) | recorded by SHA-256 |
+| `categorical-predictions.json` (`drillhole.categorical-predictions/v1`) | per scheme, prior and engine: 32 realizations, the seed or seeds, the MPSlib receipt and parameter file or the Direct Sampling settings, fallbacks and scan counts | every hard cell checked in every realization |
+| `categorical/real-<scheme>-<prior>-<engine>.npy` | the realizations, (realization, x, y, depth) | recorded by SHA-256 |
+| `categorical-metrics.json` (`drillhole.categorical-metrics/v1`) | scores on the held-out holes' cells against two references, proportions, connectivity per category, hole-pair connections and their persistence across priors and engines | truth read here and nowhere earlier |
+
+The grid is in depth below a collar surface (inverse-distance interpolation of the collar elevations, exact at
+collars), 250 m x 250 m x 10 m for Alberta. SNESIM runs through MPSlib as a supervised subprocess
+(`scripts/build_mpslib.sh` builds the pinned commit); Direct Sampling through GeoCond with one zone per depth layer.
+`scripts/check_artifacts.py` checks every file against its hash, every run against its conditioning and every
+geology code against the mapping; `scripts/check_simulation.py` records the S10 and S11 checks.
 
 ## Determinism
 

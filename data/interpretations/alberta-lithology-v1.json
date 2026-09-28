@@ -1,0 +1,62 @@
+{
+  "schema": "drillhole.lithology-mapping/v1",
+  "id": "alberta-lithology-v1",
+  "family": "alberta",
+  "status": "reviewed interpretation authored for Sondara on 2026-09-27; the source codes are unchanged",
+  "license": "MIT (the mapping); the source codes are AGS DIG 2024-0022",
+  "evidence": [
+    "MAR_19860002 (Uranerz Exploration and Mining, Maybelle River project 71-42, 1986), Table 2, Summary of Stratigraphy: glacial drift; Middle Devonian; Athabasca Group (Manitou Falls and Fair Point formations); unconformity; Aphebian granitoids and metasediments, Archean metasediments and granite gneisses",
+    "The interval descriptions of the source, which name the unit where the codes are missing (Unit: Devonian, Unit: Athabasca)",
+    "Pana, Creaser, Muehlenbachs and Wheatley (2007), GSC Bulletin 588, doi:10.4095/223749"
+  ],
+  "categories": [
+    {"code": 0, "name": "overburden", "label": "Overburden (glacial drift)"},
+    {"code": 1, "name": "devonian", "label": "Middle Devonian dolomites and sandstones"},
+    {"code": 2, "name": "athabasca", "label": "Athabasca Group sandstones and conglomerate"},
+    {"code": 3, "name": "gneiss", "label": "Basement gneisses, migmatite, mylonite, amphibolite"},
+    {"code": 4, "name": "granitoid", "label": "Basement granitoids and pegmatoids"}
+  ],
+  "rules": [
+    {"id": "code-overburden", "category": 0, "field": "Litho_unit", "values": ["overburden"],
+     "evidence": "source code"},
+    {"id": "description-devonian", "category": 1, "descriptionPrefix": ["Unit: Devonian", "Unit: Devonain"],
+     "evidence": "the source description names the unit; one source spelling is Devonain"},
+    {"id": "description-athabasca", "category": 2, "descriptionPrefix": ["Unit: Athabasca"],
+     "evidence": "the source description names the unit"},
+    {"id": "position-devonian-sandstone", "category": 1, "field": "Litho_unit", "values": ["dolomitic sandstone"],
+     "position": "above-category", "positionCategory": 2,
+     "evidence": "a dolomitic sandstone above logged Athabasca in the same hole is the Devonian of Table 2"},
+    {"id": "position-basal-conglomerate", "category": 2, "field": "Litho_unit", "values": ["conglomerate"],
+     "position": "directly-above-basement",
+     "evidence": "a conglomerate directly above the basement or the logged unconformity is the basal Athabasca conglomerate"},
+    {"id": "position-basement-quartzite", "category": 3, "field": "Litho_unit", "values": ["quartzite"],
+     "position": "below-unconformity",
+     "evidence": "a quartzite below the logged unconformity contact is a basement metasediment"},
+    {"id": "code-gneiss", "category": 3, "field": "Litho_unit", "evidence": "source code: a single metamorphic lithology",
+     "values": ["mafic feldspathic gneiss", "pelitic gneiss", "feldspathic gneiss", "graphitic gneiss", "migmatite",
+                "aluminous gneiss", "arkosic gneiss", "semipelitic gneiss", "granitic and feldspathic gneisses",
+                "garnet cordierite feldspathic gneiss", "granitic feldspathic gneiss", "mafic gneiss and amphibolite",
+                "mylonite", "mylonitic gneiss", "augen gneiss", "quartz feldspathic gneiss",
+                "mafic feldspathic [to mafic] gneiss", "aluminous to semi pelitic gneiss", "graphitic semipelitic gneiss",
+                "semipelitic graphitic gneiss", "aluminous feldspathic gneiss", "amphibolite",
+                "mafic feldspathic gneiss and interbedded amphibolites", "aluminous to mafic feldspathic gneiss",
+                "graphitic pelitic gneiss", "aluminous and mafic feldspathic gneiss"]},
+    {"id": "code-granitoid", "category": 4, "field": "Litho_unit", "evidence": "source code",
+     "values": ["granitoid", "basement granitoid", "pegmatoid", "granitoid / pegmatoid"]}
+  ],
+  "unmapped": [
+    {"field": "Litho_unit", "values": ["granites, pegmatites and pelitic gneiss", "feldspathic gneiss and granitoid",
+                                        "granitic gneiss and granitoid", "pyroxenite and granitoid",
+                                        "granitoid and pelitic gneiss", "pelitic gneiss and granitoid"],
+     "reason": "the description names both basement categories"},
+    {"field": "Litho_unit", "values": ["basement"], "reason": "basement, but neither gneiss nor granitoid"}
+  ],
+  "grid": {
+    "vertical": "depth below the collar surface (inverse-distance interpolation of the collar elevations, power 2)",
+    "origin": [748750.0, 6445000.0, 0.0],
+    "cell": [250.0, 250.0, 10.0],
+    "shape": [34, 38, 24],
+    "traceStep": 0.25,
+    "majority": 0.5
+  }
+}

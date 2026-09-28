@@ -1,4 +1,8 @@
-# Optional GPU accelerator lane. This file is intentionally dependency-free in
-# the template. An instantiated product pins the verified CUDA/ROCm packages and
-# records the driver/runtime matrix in docs/guides/03_gpu-lane.md.
+# GPU lane (.venv-gpu): the S11 Direct Sampling parity check (scripts/check_simulation.py) and, with unit SD-7, the
+# learned methods. PyTorch comes from its CUDA 12.6 index; verified on an RTX 4070 Laptop GPU with torch 2.14.0+cu126.
+#   python -m venv .venv-gpu
+#   .venv-gpu/Scripts/python -m pip install -r requirements-gpu.txt
+--extra-index-url https://download.pytorch.org/whl/cu126
 -r requirements-precompute.txt
+-r requirements-dev.txt   # the CUDA gates (tests marked cuda) run here
+torch==2.14.0

@@ -10,8 +10,24 @@ import math
 
 import numpy as np
 
+#: Authored lithology codes and the categories an authored mapping gives them (the Alberta vocabulary's order).
+LITHOLOGY = {"drift": 0, "dolostone": 1, "sandstone": 2, "gneiss": 3, "granite": 4}
 
-def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10):
+
+def lithology_log(x_rel, y_rel, depth):
+    """A layered cover with pinch-outs over a basement whose granite lies in a band striking north-west."""
+    t0 = 3.0 + 1.0 * math.sin(x_rel / 70)
+    t1 = t0 + 2.0 + 2.0 * math.cos(y_rel / 60)
+    t2 = t1 + max(0.0, 4.0 * math.sin((x_rel + y_rel) / 90))
+    rock = "granite" if abs((x_rel - y_rel) - 20.0) < 45.0 else "gneiss"
+    cuts = [(0.0, round(t0, 1), "drift"), (round(t0, 1), round(t1, 1), "dolostone")]
+    if round(t2, 1) > round(t1, 1):
+        cuts.append((round(t1, 1), round(t2, 1), "sandstone"))
+    cuts.append((round(max(t1, t2), 1), depth, rock))
+    return [c for c in cuts if c[1] > c[0]]
+
+
+def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10, lithology=False):
     folder.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     collars, assays = [], []
@@ -46,16 +62,42 @@ def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10):
                           "Zn_ppm": {"analyte": "Zn", "unit": "ppm", "method": "ICP"}}}],
         "compositing": {"lengths": [4.0], "minCoverage": 1.0},
     }
+    if lithology:
+        rows = []
+        for hole, x, y, *_ in collars:
+            log = lithology_log(x - 500000.0, y - 7400000.0, 2.0 * samples)
+            if hole == "H12":  # one interval naming two basement rocks, which a mapping must leave unmapped
+                a, b, _ = log[-1]
+                log[-1] = (a, b, "gneiss and granite")
+            rows += [(hole, f"{a:.1f}", f"{b:.1f}", code) for a, b, code in log]
+        with (folder / "lithology.csv").open("w", encoding="utf-8", newline="") as stream:
+            w = csv.writer(stream, lineterminator="\n")
+            w.writerow(["HoleID", "From", "To", "Lith"])
+            w.writerows(rows)
+        manifest["files"].append({"path": "lithology.csv", "role": "lithology",
+                                  "columns": {"hole": "HoleID", "from": "From", "to": "To"}, "codes": ["Lith"]})
     (folder / "import.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return folder / "import.json"
 
 
-def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer")):
+def lithology_mapping(project_id):
+    """An authored mapping for the authored field: one rule per code, the mixed code unmapped, a 5 x 5 x 20 grid."""
+    return {"schema": "drillhole.lithology-mapping/v1", "id": f"{project_id}-lithology-v1", "family": project_id,
+            "status": "authored for the tests", "evidence": [],
+            "categories": [{"code": c, "name": n, "label": n} for n, c in LITHOLOGY.items()],
+            "rules": [{"id": f"code-{n}", "category": c, "field": "Lith", "values": [n], "evidence": "authored"}
+                      for n, c in LITHOLOGY.items()],
+            "unmapped": [{"field": "Lith", "values": ["gneiss and granite"], "reason": "names two basement rocks"}],
+            "grid": {"vertical": "depth below the collar surface", "origin": [499975.0, 7399975.0, 0.0],
+                     "cell": [50.0, 50.0, 1.0], "shape": [5, 5, 20], "traceStep": 0.1, "majority": 0.5}}
+
+
+def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer"), lithology=False):
     """Import the authored field and run the stages; returns the output folder and the project id."""
     import run
     from source_adapters.manifest_import import run_import
 
-    manifest = write(tmp_path / "source")
+    manifest = write(tmp_path / "source", lithology=lithology)
     out = tmp_path / "derived"
     identifier = run_import(manifest, out)["project"]
     for stage in stages:

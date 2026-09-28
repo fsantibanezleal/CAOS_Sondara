@@ -202,6 +202,99 @@ weak evidence.
 - The Gaussian-space model's sill is 1.87 for normal scores of unit variance, with two of its three ranges at the
   bound: the realizations have twice the truths' variance (41.3 against 21.7) and the 80 % coverage is 0.54.
 
+## Alberta MAR_19860002, categorical simulation of the logs
+
+The logs of the 22 Maybelle River holes, mapped to five categories (overburden, Devonian, Athabasca Group, basement
+gneiss, basement granitoid; [the Alberta case](../cases/alberta.md)), condition a 34 x 38 x 24 grid of 250 m x 250 m x
+10 m cells in depth below the collar surface. Each engine runs 32 realizations under each of two labelled training
+images, per split, from the training holes only; the held-out holes' cells are scored with the realizations' category
+frequencies. The design is [the categorical-simulation design](../design/features/categorical-simulation/design.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/categorical-alberta-priors-dark.svg">
+  <img alt="Two training images of the Alberta grid: both have a layered cover of overburden, Devonian and Athabasca Group that thins and pinches out over basement gneiss; the first puts granitoid in steep bands along azimuth 315, the second in rounded bodies." src="../assets/categorical-alberta-priors-light.svg" width="960">
+</picture>
+
+**Scores.** The multi-category Brier score is $\mathrm{BS} = \frac{1}{n}\sum_{j}\sum_{k}(p_{jk} - o_{jk})^2$ (0 is
+perfect, 2 the worst), the log score is $-\overline{\ln p_{j,\text{true}}}$ with probabilities floored at $10^{-3}$,
+and the references are the training proportions and the training holes' vertical proportion curve (the proportion of
+each category per depth layer), the natural baseline for a layered cover.
+
+| Hole-group split (MR-04, MR-07, MR-20; 61 cells, 26 of them logged by a training hole in the same cell) | Brier | Log score | Accuracy | Brier skill over the curve | Brier, 35 uninformed cells | Accuracy, uninformed |
+|---|---:|---:|---:|---:|---:|---:|
+| training proportions | 0.783 | 1.567 | 0.26 | | 0.761 | 0.40 |
+| vertical proportion curve | 0.464 | 0.847 | 0.69 | | 0.431 | 0.74 |
+| SNESIM, northwest fabric | 0.388 | 1.039 | 0.75 | +0.16 | 0.276 | 0.77 |
+| Direct Sampling, northwest fabric | 0.413 | 1.084 | 0.79 | +0.11 | 0.319 | 0.83 |
+| SNESIM, gneiss domes | 0.359 | 1.013 | 0.80 | +0.23 | 0.225 | 0.86 |
+| Direct Sampling, gneiss domes | 0.447 | 1.120 | 0.67 | +0.04 | 0.379 | 0.63 |
+
+| Spatial margin (MR-10, MR-11, MR-17; 51 cells, none logged by a training hole) | Brier | Log score | Accuracy | Brier skill over the curve |
+|---|---:|---:|---:|---:|
+| training proportions | 0.857 | 1.722 | 0.06 | |
+| vertical proportion curve | 0.623 | 1.091 | 0.51 | |
+| SNESIM, northwest fabric | 0.568 | 1.201 | 0.61 | +0.09 |
+| Direct Sampling, northwest fabric | 0.479 | 0.842 | 0.65 | +0.23 |
+| SNESIM, gneiss domes | 0.463 | 0.915 | 0.65 | +0.26 |
+| Direct Sampling, gneiss domes | 0.387 | 0.675 | 0.65 | +0.38 |
+
+- **Every run beats both references on the Brier score**, most on the cells no training hole logs (SNESIM with the
+  gneiss domes: 0.225 against 0.431 for the curve). The simulations add what the curve cannot: lateral continuity from
+  the neighbouring holes.
+- **The log score says otherwise on the hole-group split**: every run is worse than the curve (1.01 to 1.12 against
+  0.85). Seven of the 61 test cells share a grid cell with a training hole that logged a different category there
+  (MR-04 beside MR-19, and MR-20 on MR-21's collar); conditioning fixes the training hole's category in every
+  realization, so those seven get probability zero and the floored logarithm charges each 6.9. The penalty measures
+  two logs disagreeing inside one 250 m cell, not an overconfident model. On the margin, where no test cell is
+  conditioned, the zoned Direct Sampling runs have the best log scores (0.68 and 0.84 against 1.09).
+- **Neither prior nor engine wins on both splits.** The ranking reverses between them, and three held-out holes per
+  split cannot separate them; the differences are the size of one hole's cells.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/categorical-alberta-sections-dark.svg">
+  <img alt="Four west-east sections of the Alberta grid, one per engine and prior, coloured by the most probable category over 32 realizations, with the conditioning cells of two training holes outlined: the cover is layered in all four, and the granitoid around the holes differs between priors." src="../assets/categorical-alberta-sections-light.svg" width="960">
+</picture>
+
+**Proportions.** Every run under-reproduces granitoid: 0.06 to 0.12 of the grid, against 0.15 to 0.21 in the training
+images and a quarter to a third of the training holes' basement cells, and over-reproduces gneiss (0.42 to 0.54
+against 0.39 to 0.44). Neither engine
+here has a proportion control (a servosystem), and the conditioning pulls toward the gneiss that dominates the logged
+basement. On the margin the held-out holes are mostly Athabasca and granitoid (gneiss 0.06), so the gneiss excess costs
+most there.
+
+**Connectivity** (Renard and Allard 2013): $H$ is the share of a category in its largest 6-connected cluster, and a
+hole pair is connected in a realization when their conditioning cells of the category meet in one cluster. A pair is
+persistent when it is connected in at least 90 % of the realizations of every prior and engine, and prior-dependent
+when the two priors' means differ by at least 0.5.
+
+| Hole-group split | Pairs | Persistent | Prior-dependent | Never joined | Other |
+|---|---:|---:|---:|---:|---:|
+| overburden | 78 | 78 | 0 | 0 | 0 |
+| Devonian | 45 | 36 | 0 | 0 | 9 |
+| Athabasca Group | 36 | 15 | 0 | 0 | 21 |
+| basement gneiss | 55 | 35 | 8 | 0 | 12 |
+| basement granitoid | 28 | 1 | 0 | 2 | 25 |
+
+- **The cover is one connected body in every run** ($H$ = 1.00 for overburden, 0.99 to 1.00 for Devonian): Devonian
+  is logged in 21 of the 22 holes (MR-11 passes from drift straight into Athabasca), and the simulations join it. The
+  report's "possible embayments or outliers" of Devonian are not resolved at 250 m cells.
+- **Granitoid connections are the uncertain ones**: $H$ from 0.44 to 0.70, 12 to 50 separate bodies per realization,
+  and only one persistent pair on each split. One of the two (MR-20 with MR-21) shares a collar; the other (MR-08 with
+  MR-10, 1.6 km apart on the hole-group split) holds under both priors and both engines.
+- **The priors disagree about MR-22's basement**: its gneiss joins eight other holes' gneiss in 97 to 98 % of the
+  gneiss-domes realizations and 45 to 47 % of the northwest-fabric realizations, because the steep granitoid bands of
+  the northwest prior cut it off. This is a connection that belongs to the prior, not to the data.
+- Direct Sampling makes many more small bodies than SNESIM (18 to 29 Athabasca and gneiss clusters per realization
+  against 3 to 7), the price of first-match copying with a 24-node data event and a 25 % scan.
+
+**Engines.** Every realization reproduces every conditioning cell. SNESIM (MPSlib, the pinned commit) took 1,327 to
+2,536 s for 32 realizations, with four runs sharing the machine with Direct Sampling; zoned Direct Sampling (GeoCond
+0.8.0) took 160 to 210 s per realization in its worker process, with 19.5 to 23.6 % of nodes falling back to the best
+scanned candidate at the 0.05 threshold. S10 (SNESIM
+reproduces an authored image's 2 x 2 pattern frequencies: total variation 0.011, bound 0.05) and S11 (the Alberta
+Direct Sampling case, 30,786 nodes, the same candidate for every node on the CPU and on CUDA) pass on this machine and
+are recorded in `simulation-checks.json`.
+
 ## The scenario matrix
 
 `scenarios.json` resolves each registered scenario to cells: a method or variant computed from a family's metrics
@@ -211,11 +304,12 @@ metrics changed.
 
 | State | Scenarios |
 |---|---|
-| complete | R01, R04 to R09, A01, A03, A05, A06, S01 to S09 |
+| complete | R01, R04 to R09, A01, A03 to A08, S01 to S11 |
 | partial | R02 and A02 (the exported views, SD-8), R10 and R11 (DeepKriging and KCN, SD-7), S12 (export and re-import, SD-8) |
-| pending | R03 (fence section, SD-8), R12 (the spectral-index review, SD-7), A04, A07, A08, S10, S11 (categorical simulation, SD-6) |
+| pending | R03 (fence section, SD-8), R12 (the spectral-index review, SD-7) |
 
-Cells: 47 computed, 17 verified by tests, 14 pending (5 for SD-6, 5 for SD-7, 4 for SD-8), none missing.
+Cells: 54 computed, 20 verified by tests, 9 pending (5 for SD-7, 4 for SD-8), none missing. S10 and S11 count as
+computed only when `simulation-checks.json` records them as passed, since their tests skip without MPSlib or CUDA.
 
 ## Receipts
 

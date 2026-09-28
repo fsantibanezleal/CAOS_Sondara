@@ -23,7 +23,10 @@ spatial-margin and a declared holdout) before any fit, and ``features`` computes
 declustering and experimental variograms (``stages/dataset.py``, ``stages/features.py``). ``train`` fits and selects
 the covariance models on training and validation rows (``stages/train.py``), and ``infer`` predicts the test rows with
 the eight classical methods (``stages/infer.py``). ``evaluate`` scores them against the test truths and rebuilds the
-scenario matrix ``<out>/scenarios.json`` (``stages/evaluate.py``, ``stages/scenarios.py``). Each stage checks the hash of
+scenario matrix ``<out>/scenarios.json`` (``stages/evaluate.py``, ``stages/scenarios.py``). For a family with a reviewed
+lithology mapping, the same three stages run the categorical lane (``stages/categorical.py``): conditioning and training
+images, SNESIM (MPSlib, ``scripts/build_mpslib.sh``) and Direct Sampling realizations, and their scores; ``--lane``
+runs one lane alone. Each stage checks the hash of
 its input. Raw sources live outside the repository (``--cache``, default ``$SONDARA_RAW`` or ``build/sources``); derived
 outputs go to ``--out`` (default ``build/derived``).
 """
@@ -169,51 +172,87 @@ def _chain(family: str, out: Path):
     return target, project, pre, split
 
 
-def train(family: str, out: Path) -> dict:
+LANES = ("all", "continuous", "categorical")
+
+
+def train(family: str, out: Path, lane: str = "all") -> dict:
+    from stages.categorical import train_categorical
     from stages.train import train_family
 
     t0 = time.time()
     target, project, pre, split = _chain(family, out)
-    features_record = load_json(target / "features.json")
-    if features_record["inputDatasetSha256"] != stable_hash(split):
-        raise ValueError(f"{family}: features.json was computed from another dataset; run features again")
-    result = train_family(family, project, pre, split, features_record)
-    result["inputFeaturesSha256"] = stable_hash(features_record)
-    write_json(target / "models.json", result)
-    fitted = [p for s in result["schemes"] for p in s["populations"]]
-    return {"family": family, "eligible": result["eligible"], "populations": len(fitted),
-            "fitted": sum(p["status"] == "fitted" for p in fitted), "seconds": round(time.time() - t0, 1)}
+    summary = {"family": family}
+    if lane in ("all", "continuous"):
+        features_record = load_json(target / "features.json")
+        if features_record["inputDatasetSha256"] != stable_hash(split):
+            raise ValueError(f"{family}: features.json was computed from another dataset; run features again")
+        result = train_family(family, project, pre, split, features_record)
+        result["inputFeaturesSha256"] = stable_hash(features_record)
+        write_json(target / "models.json", result)
+        fitted = [p for s in result["schemes"] for p in s["populations"]]
+        summary.update(eligible=result["eligible"], populations=len(fitted),
+                       fitted=sum(p["status"] == "fitted" for p in fitted))
+    if lane in ("all", "categorical"):
+        categorical = train_categorical(family, project, split, target)
+        categorical.update(inputProjectSha256=stable_hash(project), inputDatasetSha256=stable_hash(split))
+        write_json(target / "categorical-models.json", categorical)
+        summary["categorical"] = categorical["eligible"]
+    return {**summary, "seconds": round(time.time() - t0, 1)}
 
 
-def infer(family: str, out: Path) -> dict:
+def infer(family: str, out: Path, lane: str = "all") -> dict:
+    from stages.categorical import infer_categorical
     from stages.infer import infer_family
 
     t0 = time.time()
     target, project, pre, split = _chain(family, out)
-    models = load_json(target / "models.json")
-    if models["inputFeaturesSha256"] != stable_hash(load_json(target / "features.json")):
-        raise ValueError(f"{family}: models.json was fitted on other features; run train again")
-    result = infer_family(family, project, pre, split, models)
-    result["inputModelsSha256"] = stable_hash(models)
-    write_json(target / "predictions.json", result)
-    return {"family": family, "eligible": result["eligible"], "seconds": round(time.time() - t0, 1)}
+    summary = {"family": family}
+    if lane in ("all", "continuous"):
+        models = load_json(target / "models.json")
+        if models["inputFeaturesSha256"] != stable_hash(load_json(target / "features.json")):
+            raise ValueError(f"{family}: models.json was fitted on other features; run train again")
+        result = infer_family(family, project, pre, split, models)
+        result["inputModelsSha256"] = stable_hash(models)
+        write_json(target / "predictions.json", result)
+        summary["eligible"] = result["eligible"]
+    if lane in ("all", "categorical"):
+        models = load_json(target / "categorical-models.json")
+        if (models["inputProjectSha256"], models["inputDatasetSha256"]) != (stable_hash(project), stable_hash(split)):
+            raise ValueError(f"{family}: categorical-models.json was built from other inputs; run train again")
+        result = infer_categorical(models, target)
+        result["inputCategoricalModelsSha256"] = stable_hash(models)
+        write_json(target / "categorical-predictions.json", result)
+        summary["categorical"] = result["eligible"]
+    return {**summary, "seconds": round(time.time() - t0, 1)}
 
 
-def evaluate(family: str, out: Path) -> dict:
+def evaluate(family: str, out: Path, lane: str = "all") -> dict:
+    from stages.categorical import evaluate_categorical
     from stages.evaluate import evaluate_family
     from stages.scenarios import scenario_matrix
 
     t0 = time.time()
     target, project, pre, split = _chain(family, out)
-    predictions, models = load_json(target / "predictions.json"), load_json(target / "models.json")
-    if predictions["inputModelsSha256"] != stable_hash(models):
-        raise ValueError(f"{family}: predictions.json came from other models; run infer again")
-    result = evaluate_family(family, project, pre, split, predictions, models)
-    write_json(target / "metrics.json", result)
+    summary = {"family": family}
+    if lane in ("all", "continuous"):
+        predictions, models = load_json(target / "predictions.json"), load_json(target / "models.json")
+        if predictions["inputModelsSha256"] != stable_hash(models):
+            raise ValueError(f"{family}: predictions.json came from other models; run infer again")
+        result = evaluate_family(family, project, pre, split, predictions, models)
+        write_json(target / "metrics.json", result)
+        summary["eligible"] = result["eligible"]
+    if lane in ("all", "categorical"):
+        models = load_json(target / "categorical-models.json")
+        predictions = load_json(target / "categorical-predictions.json")
+        if predictions["inputCategoricalModelsSha256"] != stable_hash(models):
+            raise ValueError(f"{family}: categorical-predictions.json came from other models; run infer again")
+        result = evaluate_categorical(project, split, models, predictions, target)
+        result["inputCategoricalPredictionsSha256"] = stable_hash(predictions)
+        write_json(target / "categorical-metrics.json", result)
+        summary["categorical"] = result["eligible"]
     matrix = scenario_matrix(out)
     write_json(out / "scenarios.json", matrix, pretty=True)
-    return {"family": family, "eligible": result["eligible"], "scenarioCells": matrix["counts"],
-            "seconds": round(time.time() - t0, 1)}
+    return {**summary, "scenarioCells": matrix["counts"], "seconds": round(time.time() - t0, 1)}
 
 
 def main(argv=None) -> int:
@@ -224,6 +263,8 @@ def main(argv=None) -> int:
     parser.add_argument("--manifest", type=Path, help="ingest user files described by this import manifest")
     parser.add_argument("--cache", type=Path, default=Path(os.environ.get("SONDARA_RAW", ROOT / "build" / "sources")))
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "derived")
+    parser.add_argument("--lane", choices=LANES, default="all",
+                        help="train, infer and evaluate: the continuous lane, the categorical lane, or both")
     args = parser.parse_args(argv)
     if args.stage == "acquire":
         print(json.dumps(acquire(args.cache), indent=2))
@@ -248,11 +289,11 @@ def main(argv=None) -> int:
         elif args.stage == "features":
             print(json.dumps(features(family, args.out)))
         elif args.stage == "train":
-            print(json.dumps(train(family, args.out)))
+            print(json.dumps(train(family, args.out, args.lane)))
         elif args.stage == "infer":
-            print(json.dumps(infer(family, args.out)))
+            print(json.dumps(infer(family, args.out, args.lane)))
         else:
-            print(json.dumps(evaluate(family, args.out)))
+            print(json.dumps(evaluate(family, args.out, args.lane)))
     return 0
 
 
