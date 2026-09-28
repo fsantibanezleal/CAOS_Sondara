@@ -27,6 +27,6 @@ Pin nothing here, versions live in `requirements-*.txt`.
 | `figures/categorical_figures.py` | Draws the categorical figures of the docs (the two training images; sections of the most probable category per engine and prior) from the Alberta categorical outputs. |
 | `figures/evaluate_figures.py` | Draws the evaluation figures of the docs (methods and variants against OK, SGS reproduction) from `rocklea/metrics.json`. |
 | `fixtures/author_fixtures.py` | Writes the authored fixtures F01 to F42 and their registry (`data/fixtures/`), deterministically. |
-| `check_sdd.py` | The design document exists and every requirement names a gate that exists (ADR-0075). |
+| `check_sdd.py` | The design document exists and every requirement names a gate that exists (ADR-0075); a feature whose requirements open with `Status: planned` is checked for form and a file gate, and listed apart until its convergence. |
 | `check_template_residue.py` | An instantiated product must not ship template residue (the example pipeline, SIR model, `EX0*` cases, placeholder text). No-op in the template itself while the `.template-source` sentinel exists; instantiation deletes the sentinel to arm it. See ADR-0057 / ADR-0061. |
 | `check_content_standards.py` | No em-dash (`U+2014`/`U+2015`) and no pictographic emoji in tracked content. Always on. Use comma/colon/semicolon/period/parentheses/middot instead. See ADR-0067. |

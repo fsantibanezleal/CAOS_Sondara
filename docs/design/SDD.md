@@ -164,6 +164,11 @@ R-003  IF any template example or placeholder survives instantiation, THEN THE g
 R-004  THE repository SHALL keep a design document in which every requirement names a gate that exists.
        Gate: scripts/check_sdd.py
 
+R-005  WHEN a feature's requirements open with "Status: planned", THE SDD gate SHALL still require SHALL and a gate
+       naming a repository file for each of them, SHALL list and count them apart from the live requirements, and
+       SHALL NOT accept the status on the design document itself.
+       Gate: tests/test_sdd.py::test_planned_requirements_are_counted_apart
+
 R-010  THE sources manifest SHALL pin every source file by URL or bundled path, byte count and SHA-256, with its
        license and attribution.
        Gate: tests/test_ingest.py::test_the_manifest_pins_every_source_with_license_and_attribution
