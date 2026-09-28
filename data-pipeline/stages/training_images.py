@@ -31,12 +31,15 @@ BASEMENT = (3, 4)  # gneiss, granitoid
 
 def _field(rng, shape, sigma_cells, azimuth_deg=0.0):
     """A standardized Gaussian random field: white noise convolved with an (anisotropic) Gaussian kernel, computed on a
-    padded domain by FFT and cropped, so no periodic wrap reaches the image."""
-    pad = [int(3 * s) + 1 for s in (max(sigma_cells[0], sigma_cells[1]),) * 2 + (sigma_cells[2],)]
+    padded domain by FFT and cropped, so no periodic wrap reaches the image. The padding is three kernel widths, capped
+    at four image extents per axis: a kernel wider than that is nearly flat across the image, and an uncapped one on
+    fine cells asked for gigabytes. The kernel is built by broadcasting the three axes, never as full meshgrids."""
+    pad = [min(int(3 * s) + 1, 4 * n)
+           for s, n in zip((max(sigma_cells[0], sigma_cells[1]),) * 2 + (sigma_cells[2],), shape, strict=True)]
     big = tuple(n + 2 * p for n, p in zip(shape, pad, strict=True))
     noise = rng.standard_normal(big)
-    axes = [np.fft.fftfreq(n) * n for n in big]
-    x, y, z = np.meshgrid(*axes, indexing="ij")
+    x, y, z = (np.fft.fftfreq(n) * n for n in big)
+    x, y, z = x[:, None, None], y[None, :, None], z[None, None, :]
     a = math.radians(azimuth_deg)
     along = x * math.sin(a) + y * math.cos(a)  # azimuth measured from north (y) toward east (x)
     across = x * math.cos(a) - y * math.sin(a)

@@ -15,7 +15,7 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
 | 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; the learned models come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
 | 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM and Direct Sampling realizations for Alberta; the learned methods come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
-| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; the scenario matrix | 0.09.000 (classical) |
+| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; categorical Brier and log scores, proportions, connectivity and hole connections for Alberta; the scenario matrix | 0.09.000 (classical); 0.10.000 (categorical) |
 | 9 | `export` | Arrow and Parquet tables, typed geometry, tiled fields, the model registry, metrics and an immutable manifest | planned |
 | 10 | `validate` | Source identity, every expected method, case and variant cell, masks, seeds, license attribution and offline and live parity | planned |
 

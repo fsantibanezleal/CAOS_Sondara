@@ -36,7 +36,14 @@ PRIOR_LABEL = {"nw-high-strain": "northwest high-strain fabric", "gneiss-domes":
 ENGINE_LABEL = {"snesim": "SNESIM (MPSlib)", "direct-sampling": "Direct Sampling (GeoCond, zoned)"}
 
 
+FONT = "Segoe UI, Helvetica, Arial, sans-serif"
+
+
 def svg(width, height, title, desc, body, p):
+    # Text colours as presentation attributes too: a renderer that ignores the style block still draws them right.
+    body = (body.replace('class="t"', f'class="t" font-family="{FONT}" font-size="15" font-weight="600" fill="{p["fg"]}"')
+            .replace('class="b"', f'class="b" font-family="{FONT}" font-size="13" fill="{p["fg"]}"')
+            .replace('class="m"', f'class="m" font-family="{FONT}" font-size="12" fill="{p["muted"]}"'))
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
         f'role="img" aria-labelledby="t d">\n  <title id="t">{title}</title>\n  <desc id="d">{desc}</desc>\n'
@@ -49,13 +56,15 @@ def svg(width, height, title, desc, body, p):
 
 
 def raster(parts, p, grid, x0, y0, cw, ch):
-    """A 2D category array (columns x, rows y downward) as run-length rectangles."""
+    """A 2D category array (columns x, rows y downward) as run-length rectangles; each row overlaps the next by a
+    fraction of a pixel, which the next row covers, so no renderer shows a seam between rows."""
     for row in range(grid.shape[1]):
         start = 0
         for col in range(1, grid.shape[0] + 1):
             if col == grid.shape[0] or grid[col, row] != grid[start, row]:
                 parts.append(f'  <rect x="{x0 + start * cw:.1f}" y="{y0 + row * ch:.1f}" '
-                             f'width="{(col - start) * cw:.1f}" height="{ch:.1f}" fill="{p["cat"][int(grid[start, row])]}"/>')
+                             f'width="{(col - start) * cw:.1f}" height="{ch + (0.6 if row < grid.shape[1] - 1 else 0):.1f}" '
+                             f'fill="{p["cat"][int(grid[start, row])]}" shape-rendering="crispEdges"/>')
                 start = col
 
 

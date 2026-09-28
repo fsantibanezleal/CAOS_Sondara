@@ -284,9 +284,18 @@ def lane(tmp_path_factory):
     interpretations.mkdir()
     (interpretations / f"{identifier}-lithology-v1.json").write_text(
         json.dumps(authored_field.lithology_mapping(identifier)), encoding="utf-8")
+    import stages.training_images
+
+    # The Alberta priors' lengths (kilometres) scaled to the authored field's 50 m x 1 m cells.
+    priors = {"nw-high-strain": {**stages.training_images.PRIORS["nw-high-strain"], "along_m": 600.0, "across_m": 100.0,
+                                 "vertical_m": 20.0},
+              "gneiss-domes": {**stages.training_images.PRIORS["gneiss-domes"], "along_m": 200.0, "across_m": 200.0,
+                               "vertical_m": 5.0}}
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(stages.categories, "INTERPRETATIONS", interpretations)
         patch.setattr(stages.categorical, "REALIZATIONS", 6)
+        patch.setattr(stages.training_images, "PRIORS", priors)
+        patch.setattr(stages.training_images, "CORRELATION_M", 200.0)
         for stage in (run.train, run.infer, run.evaluate):
             stage(identifier, folder.parent, "categorical")
     load = lambda name: json.loads((folder / f"{name}.json").read_text(encoding="utf-8"))

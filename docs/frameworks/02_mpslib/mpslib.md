@@ -70,7 +70,8 @@ non-overburden categories in 16 % of the surface layer of an Alberta realization
 ## Caveats and license
 
 LGPL-3.0 (the root `LICENSE` of the pinned commit; the documentation still states an older wording). The license is
-copied beside the executables, which are built locally and not redistributed by Sondara. SNESIM is CPU-only here and
-takes about 20 s per realization of the 31,008-cell Alberta grid alone, longer when it shares the machine with Direct
-Sampling. Realization quality depends on the training image, which is an interpretation; the tests check the engine's
+copied beside the executables, which are built locally and not redistributed by Sondara. SNESIM is CPU-only here. On
+the 31,008-cell Alberta grid it took about 20 s per realization alone in a trial, and 41 to 79 s per realization in the
+full run (1,327 to 2,536 s for 32), with four runs and seven Direct Sampling workers sharing a 24-core laptop; the
+gneiss-domes image is the slower one. The supervision limit is 300 s per realization. Realization quality depends on the training image, which is an interpretation; the tests check the engine's
 contract (hard data, seeds, schema, small-pattern frequencies), not the geology.
