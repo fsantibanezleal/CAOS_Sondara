@@ -1,32 +1,33 @@
 # scripts/, environment + pipeline orchestration (cross-platform)
 
-Local scripts so **anyone** can configure the env and run the flow. Provide every script in BOTH `*.sh`
-(macOS/Linux/Git-Bash) and `*.ps1` (Windows PowerShell, since Felipe runs PS).
+Every shell script comes as `*.sh` (Linux, macOS, Git Bash) and `*.ps1` (Windows PowerShell) with the same
+arguments. They are idempotent, pick the virtual environment of their lane (never a global Python), and pin nothing:
+versions live in the `requirements-*.txt` files.
 
-## How to populate
+## Environment and pipeline
 
-| Script | What it must do |
+| Script | What it does |
 |---|---|
-| `setup.sh` / `setup.ps1` | create `.venv`, upgrade pip, install `requirements.txt -r requirements-dev.txt -r requirements-precompute.txt`; print the next commands. GPU/API lanes installed only on demand. |
-| `precompute.sh` / `precompute.ps1` | run one offline stage: `python data-pipeline/run.py <stage> [options]` (today `acquire` and `ingest`; see docs/architecture/05_precompute-pipeline.md). |
-| raw inputs | `run.py acquire` downloads the pinned sources into `$SONDARA_RAW` (outside the repository). Never commit raw. |
-| `serve-api.sh` / `serve-api.ps1` | (optional, only if `api/` is active) `uvicorn api.main:app --reload`. |
+| `setup.sh` / `setup.ps1` | Creates `.venv-pipeline` (`requirements-precompute.txt` and `requirements-dev.txt`) and `.venv` (`requirements.txt`); with `--gpu` (`-Gpu`) also `.venv-gpu` (`requirements-gpu.txt`: PyTorch CUDA, onnx, ONNX Runtime). |
+| `precompute.sh` / `precompute.ps1` | Runs one stage, `data-pipeline/run.py <stage> [options]`, in `.venv-gpu` when it exists, else `.venv-pipeline` ([guide](../docs/guides/01_precompute-pipeline.md)). |
+| `smoke.sh` / `smoke.ps1` | Runs `check_artifacts.py` on `build/derived` (or `--derived`), in `.venv-gpu` when it exists, because the learned exports are audited with onnx. |
+| `build_mpslib.sh` / `build_mpslib.ps1` | Builds MPSlib's SNESIM executables from the pinned commit (Linux or WSL; the `.ps1` calls the `.sh` through WSL) into `$SONDARA_MPSLIB` or `build/mpslib`, with a receipt of the commit, compiler and executable hashes. |
+| `dev.sh` / `dev.ps1` | The frontend dev server (the web unit, SD-9, rebuilds the page). |
 
-Rules: idempotent; detect `.venv/bin/python` vs `.venv/Scripts/python.exe`; never use global Python/Node.
-Pin nothing here, versions live in `requirements-*.txt`.
+Raw inputs: `run.py acquire` downloads the pinned sources into `$SONDARA_RAW`, outside the repository; raw files are
+never committed.
 
 ## Guards (run in CI, keep them local-runnable)
 
 | Script | What it enforces |
 |---|---|
-| `check_artifacts.py` | Every family in `build/derived`, through its last stage: the canonical project (`drillhole.project/v2`) with a matching summary, then the preprocessed, dataset, features, models, predictions and metrics outputs and the categorical models, predictions and metrics (with every training image and realization file against its hash), each against the hash of its input and its own rules, and the scenario matrix (no missing, ownerless or stale cell). |
+| `check_artifacts.py` | Every family in `build/derived`, through its last stage: the canonical project (`drillhole.project/v2`) with a matching summary, then the preprocessed, dataset, features, models, predictions and metrics outputs the categorical models, predictions and metrics (with every training image and realization file against its hash), and the learned models, predictions and exports (the frozen search, the selection rule, every weights hash, every prediction row, every ONNX file re-audited with its parity), each against the hash of its input and its own rules, and the scenario matrix (no missing, ownerless or stale cell). |
 | `figures/preprocess_figures.py` | Draws the preprocess figures of the docs (light and dark SVG) from the real outputs in `build/derived`. |
 | `figures/features_figures.py` | Draws the variogram figure of the docs from `rocklea/features.json`. |
-| `build_mpslib.sh`, `build_mpslib.ps1` | Build MPSlib's SNESIM executables from the pinned commit (Linux or WSL; the `.ps1` calls the `.sh` through WSL) into `$SONDARA_MPSLIB` or `build/mpslib`, with a receipt of the commit, compiler and executable hashes. |
 | `check_simulation.py` | Run S10 (SNESIM small-pattern frequencies) and S11 (Direct Sampling CPU and CUDA candidate identity on the Alberta case) in `.venv-gpu`, and write `simulation-checks.json`, which the scenario matrix reads. |
 | `figures/categorical_figures.py` | Draws the categorical figures of the docs (the two training images; sections of the most probable category per engine and prior) from the Alberta categorical outputs. |
 | `figures/evaluate_figures.py` | Draws the evaluation figures of the docs (methods and variants against OK, SGS reproduction) from `rocklea/metrics.json`. |
 | `fixtures/author_fixtures.py` | Writes the authored fixtures F01 to F42 and their registry (`data/fixtures/`), deterministically. |
-| `check_sdd.py` | The design document exists and every requirement names a gate that exists (ADR-0075). |
+| `check_sdd.py` | The design document exists and every requirement names a gate that exists (ADR-0075); a feature whose requirements open with `Status: planned` is checked for form and a file gate, and listed apart until its convergence. |
 | `check_template_residue.py` | An instantiated product must not ship template residue (the example pipeline, SIR model, `EX0*` cases, placeholder text). No-op in the template itself while the `.template-source` sentinel exists; instantiation deletes the sentinel to arm it. See ADR-0057 / ADR-0061. |
 | `check_content_standards.py` | No em-dash (`U+2014`/`U+2015`) and no pictographic emoji in tracked content. Always on. Use comma/colon/semicolon/period/parentheses/middot instead. See ADR-0067. |

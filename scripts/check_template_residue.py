@@ -63,6 +63,13 @@ FORBIDDEN_CONTENT = (
     "peak-infected",
     "Template blueprint",
     "00_instantiate",
+    # The template's guides and setup survived until 0.11.000: a GPU guide about the example, a precompute guide with
+    # the demo case and trace files, and a setup step installing an editable package the product does not declare.
+    "The template's EXAMPLE",
+    "commented placeholder",
+    "copper-ridge --seed",
+    "editable pkg",
+    "the editable package",
 )
 
 TEXT_SUFFIXES = {

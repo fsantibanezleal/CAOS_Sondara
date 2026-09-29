@@ -9,9 +9,10 @@ by path.
 
 ## Current release
 
-Version 0.10.000. The build follows ten units (SD-1 to SD-10); the first eight stages of the offline pipeline are
-complete for the classical methods and for categorical simulation (SNESIM and Direct Sampling on the Alberta logs),
-with every method evaluated on held-out holes and a scenario matrix that accounts for every cell, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
+Version 0.11.000. The build follows ten units (SD-1 to SD-10); the first eight stages of the offline pipeline are
+complete for the classical methods, for categorical simulation (SNESIM and Direct Sampling on the Alberta logs) and for
+the learned methods (DeepKriging and KCN, trained on the GPU and exported to ONNX with their parity), with every method
+evaluated on held-out holes and a scenario matrix that accounts for every cell, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
 [`schemas/project.schema.json`](schemas/project.schema.json):
 
 | Stage | What it does | Families |
@@ -21,9 +22,9 @@ with every method evaluated on held-out holes and a scenario matrix that account
 | `preprocess` | desurveys every hole, positions every support, selects results, composites, overlays logs and names the modeling populations | all three |
 | `dataset` | freezes hole-group, spatial-margin and declared splits; every derivative follows its hole | Rocklea, Alberta (NTGS has one hole) |
 | `features` | training-only statistics, declustering and experimental variograms | Rocklea, Alberta |
-| `train` | covariance candidates selected on validation; LMC, indicator, residual and Gaussian-space covariances with the selected structure; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images | Rocklea, Alberta |
-| `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on every test target, and the scenario variants; SNESIM and Direct Sampling realizations of the Alberta logs | Rocklea, Alberta |
-| `evaluate` | scores against the test truths, paired hole-block comparisons with OK, variance calibration, MIK and SGS scores, categorical scores and connectivity, and the scenario matrix | Rocklea, Alberta |
+| `train` | covariance candidates selected on validation; LMC, indicator, residual and Gaussian-space covariances with the selected structure; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; DeepKriging and KCN over frozen searches with three seeds and their controls | Rocklea, Alberta |
+| `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on every test target, and the scenario variants; SNESIM and Direct Sampling realizations of the Alberta logs; the learned ensembles, exported to ONNX with CPU, CUDA and ONNX parity | Rocklea, Alberta |
+| `evaluate` | scores against the test truths, paired hole-block comparisons with OK, variance calibration, MIK and SGS scores, categorical scores and connectivity, the learned methods with their seeds, residual bands and controls beside a training-mean reference, and the scenario matrix | Rocklea, Alberta |
 
 The three field families are [Rocklea Dome](docs/cases/rocklea.md) (CSIRO, 5,035 one-metre multielement intervals in
 158 holes), [Alberta MAR_19860002](docs/cases/alberta.md) (22 inclined holes with logged geology and 176 sampling
@@ -38,22 +39,19 @@ resource estimate or replace QA/QC, variogram fitting or competent-person review
 ## Run the pipeline
 
 ```sh
-python -m venv .venv-pipeline
-.venv-pipeline/Scripts/python -m pip install -r requirements-precompute.txt -r requirements-dev.txt
+./scripts/setup.sh --gpu                        # .venv-pipeline, .venv and .venv-gpu (PyTorch CUDA, onnx, ONNX Runtime)
 export SONDARA_RAW=/path/outside/the/repo
-.venv-pipeline/Scripts/python data-pipeline/run.py acquire
-.venv-pipeline/Scripts/python data-pipeline/run.py ingest
-.venv-pipeline/Scripts/python data-pipeline/run.py preprocess
-.venv-pipeline/Scripts/python data-pipeline/run.py dataset
-.venv-pipeline/Scripts/python data-pipeline/run.py features
 export SONDARA_MPSLIB=/path/outside/the/repo/mpslib
-./scripts/build_mpslib.sh                      # SNESIM, from the pinned MPSlib commit (Linux or WSL)
-.venv-pipeline/Scripts/python data-pipeline/run.py train
-.venv-pipeline/Scripts/python data-pipeline/run.py infer
-.venv-pipeline/Scripts/python data-pipeline/run.py evaluate
-.venv-pipeline/Scripts/python scripts/check_artifacts.py
+./scripts/build_mpslib.sh                       # SNESIM, from the pinned MPSlib commit (Linux or WSL)
+for stage in acquire ingest preprocess dataset features train infer evaluate; do
+  ./scripts/precompute.sh "$stage"              # runs in .venv-gpu when it exists; every lane of train, infer, evaluate
+done
+./scripts/smoke.sh                              # every output against its contract, the ONNX exports re-audited
 .venv-gpu/Scripts/python scripts/check_simulation.py   # S10 and S11 (MPSlib and a CUDA device)
 ```
+
+Without a GPU environment, pass `--lane continuous` or `--lane categorical` to `train`, `infer` and `evaluate`
+([guide](docs/guides/01_precompute-pipeline.md); the learned lane: [GPU guide](docs/guides/03_gpu-lane.md)).
 
 On Windows, `.\scripts\build_mpslib.ps1` builds MPSlib through WSL, and the pipeline runs the Linux executable through
 `wsl.exe`.

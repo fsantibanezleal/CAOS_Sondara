@@ -18,7 +18,7 @@ independent implementations of two algorithms.
 MPSlib is built from the pinned commit `a47718fc0e2c7c6f3411de429e51f1267b5d7f7c` with the upstream `make all`:
 
 ```powershell
-$env:SONDARA_MPSLIB = "E:\_Temp\mpslib\bin"      # any folder outside the repository
+$env:SONDARA_MPSLIB = "$HOME\mpslib"              # any folder outside the repository
 .\scripts\build_mpslib.ps1                        # Windows: runs the bash script through WSL
 ```
 

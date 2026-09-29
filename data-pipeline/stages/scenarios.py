@@ -53,7 +53,8 @@ PRIORS = ("nw-high-strain", "gneiss-domes")
 C = "tests/test_categorical.py::"
 
 
-LEARNED = [_pending("SD-7", "DeepKriging"), _pending("SD-7", "KCN")]
+#: The learned methods of unit SD-7a, scored by evaluate beside the classical ones (stages/learned.py).
+LEARNED = ("deepkriging", "kcn")
 CELLS = {
     "R01": [_m("rocklea", "hole-group", R1, m) for m in ("nearest-neighbour", "inverse-distance", "ordinary-kriging")],
     "R02": [_artifact("rocklea", "preprocess", "one hole's samples, positions and composites"),
@@ -66,8 +67,8 @@ CELLS = {
     "R07": [_m("rocklea", "hole-group", R1, "ordinary-kriging"), _v("rocklea", "hole-group", R1, "integrated-support")],
     "R08": [_m("rocklea", "hole-group", R1, "ordinary-kriging"), _m("rocklea", "hole-group", R1, "ordinary-cokriging")],
     "R09": [_m("rocklea", "hole-group", R1, "ordinary-kriging"), _v("rocklea", "hole-group", R1, "sparse-primary")],
-    "R10": [_m("rocklea", "hole-group", R1, m) for m in METHODS] + LEARNED,
-    "R11": [_m("rocklea", "spatial-margin", R1, m) for m in METHODS] + LEARNED,
+    "R10": [_m("rocklea", "hole-group", R1, m) for m in METHODS + LEARNED],
+    "R11": [_m("rocklea", "spatial-margin", R1, m) for m in METHODS + LEARNED],
     "R12": [_pending("SD-7", "the autoencoder review and the spectral index's calibration lineage")],
     "A01": [_artifact("alberta", "ingest", "support QA: waterfall and issues")],
     "A02": [_artifact("alberta", "preprocess", "176 envelope positions on 22 collar projections"),

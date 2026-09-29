@@ -1,7 +1,8 @@
 # The staged precompute pipeline
 
 Sondara's offline lane is a chain of ten named stages, run by path with
-`python data-pipeline/run.py <stage> [options]` in the local `.venv-pipeline`. Every stage reads the previous stage's
+`python data-pipeline/run.py <stage> [options]` in the local `.venv-pipeline` (the learned lane in `.venv-gpu`; see
+[the precompute guide](../guides/01_precompute-pipeline.md)). Every stage reads the previous stage's
 outputs, writes its own with a hash, and never reaches back to a source it did not declare. Raw sources stay outside
 the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derived outputs go to `build/derived/`
 (gitignored) until the export stage produces the compact artifacts the web page reads.
@@ -13,9 +14,9 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | 3 | `preprocess` | Exact desurvey, support positions, compositing, the log overlay and the modeling populations, through GeoCond | 0.04.000 (Rocklea, Alberta, NTGS) |
 | 4 | `dataset` | Frozen hole-group, spatial-margin and declared train, validation, calibration and test assignments; every derivative stays with its hole | 0.07.000 |
 | 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
-| 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; the learned models come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
-| 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM and Direct Sampling realizations for Alberta; the learned methods come with SD-7 | 0.08.000 (classical); 0.10.000 (categorical) |
-| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; categorical Brier and log scores, proportions, connectivity and hole connections for Alberta; the scenario matrix | 0.09.000 (classical); 0.10.000 (categorical) |
+| 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; DeepKriging and KCN fitted over their frozen searches with three seeds, selected on validation, with their controls | 0.08.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
+| 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM and Direct Sampling realizations for Alberta; the DeepKriging and KCN three-seed ensembles on the same targets, exported to ONNX with their parity | 0.08.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
+| 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; categorical Brier and log scores, proportions, connectivity and hole connections for Alberta; the learned methods beside the classical ones with their seeds, residual band and controls; the scenario matrix | 0.09.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
 | 9 | `export` | Arrow and Parquet tables, typed geometry, tiled fields, the model registry, metrics and an immutable manifest | planned |
 | 10 | `validate` | Source identity, every expected method, case and variant cell, masks, seeds, license attribution and offline and live parity | planned |
 
@@ -154,8 +155,29 @@ collars), 250 m x 250 m x 10 m for Alberta. SNESIM runs through MPSlib as a supe
 `scripts/check_artifacts.py` checks every file against its hash, every run against its conditioning and every
 geology code against the mapping; `scripts/check_simulation.py` records the S10 and S11 checks.
 
+## The learned lane (stages 6 to 8)
+
+DeepKriging and KCN run as a third lane of `train`, `infer` and `evaluate` (`--lane learned` runs it alone) in
+`.venv-gpu`, on every population the classical lane estimates, with the classical splits and targets. The design is
+[the learned-regression design](../design/features/learned-regression/design.md); the engines are on
+[the PyTorch and ONNX card](../frameworks/03_pytorch-onnx/pytorch-onnx.md), and running the lane is in
+[the GPU guide](../guides/03_gpu-lane.md).
+
+| Output | Holds | Rule |
+|---|---|---|
+| `learned-models.json` (`drillhole.learned-models/v1`) | per scheme and population: the binding (project, frame, task, unit, dataset hash, training rows hash), the target scaling, the bases and graph scales, every configuration of the frozen search with its three fits (best epoch, validation objective, weights hash, device, seconds), the selection and the controls | transforms from training rows only; selection by the seed mean of the validation hole-macro RMSE |
+| `learned/fits/.../seed-<n>/` | `fit.json` (recipe hash, history) and `weights.pt` (tensors only, loaded with `weights_only`) | a matching recipe is reused, another is refused |
+| `learned-predictions.json` (`drillhole.learned-predictions/v1`) | per method, a row per test and calibration target in the classical row schema, with the three seed predictions, their spread and the support diagnostics; the controls' test predictions; the exports | the classical targets exactly; no variance |
+| `learned/exports/.../seed-<n>/` | `model.onnx`, `manifest.json`, `parity.json`, `portable-model.zip` | audited; ONNX Runtime and CUDA against PyTorch on every held-out input within $10^{-4}$ training standard deviations |
+
+`evaluate` adds `deepkriging` and `kcn` to each population's methods in `metrics.json`, with the classical scores on
+the same targets and the learned fields (seeds, spread, residual band, controls). `scripts/check_artifacts.py` checks
+the search, the selection rule, every weights hash, every prediction row and every export's audit and parity.
+
 ## Determinism
 
 The adapters raise on any drift from the pinned counts, and ingesting the same sources twice produces the same project
 hash. The recipe text and its hash travel with every project, so a later result names the exact rules that built its
-inputs.
+inputs. The splits, fits and simulations are seeded and record their seeds. The learned fits are deterministic in
+their seeds on one device (TF32 disabled); weights trained on another device can differ in their last digits, so an
+exported model is checked by its parity record, not by comparing hashes across machines.
