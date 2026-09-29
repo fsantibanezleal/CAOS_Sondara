@@ -110,10 +110,15 @@ variance. On the 24 margin holes, whose Fe mean is 13 wt% below the training mea
 SGS) are biased by +6.6 and +8.9 wt% and universal kriging diverges. Longer composites lower every method's error.
 The scenario variants (neighbourhood, anisotropy, interval supports) move OK by less than the hole-block interval;
 cokriging with SiO2 and Al2O3 measured at the target cuts the error to 5.29 wt% through compositional closure, which
-is not spatial evidence. Tables, figures and caveats: [model evaluation](../architecture/06_model-evaluation.md).
+is not spatial evidence. DeepKriging and KCN (0.11.000, three seeds each) learned the between-hole structure (their
+shuffled-label controls are 2.3 to 5.4 wt% of MAE worse) but do not beat OK: on the hole-group 1 m test DeepKriging's
+RMSE is 14.11 with an MAE difference whose interval contains zero, and KCN's 14.56 is worse than OK's on all three
+supports. Without its basis, DeepKriging extrapolates at the margins down to -58.8 wt% Fe. Tables, figures and
+caveats: [model evaluation](../architecture/06_model-evaluation.md).
 
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158
-groups, composite-length changes, directional continuity, Fe with SiO2 and Al2O3 cokriging, and the eleven-feature
-autoencoder review. It cannot supply measured survey geometry, a geodetic placement or any observed lithology.
+groups, composite-length changes, directional continuity, Fe with SiO2 and Al2O3 cokriging, the learned methods on the same
+holdouts, and the nine-property autoencoder review with the supplied spectral indices' lineage (SD-7, second
+release). It cannot supply measured survey geometry, a geodetic placement or any observed lithology.

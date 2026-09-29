@@ -7,6 +7,6 @@ the matching requirements file.
   Sampling; pinned in `data-pipeline/requirements.txt`.
 - [02, MPSlib](frameworks/02_mpslib/mpslib.md): SNESIM from a pinned commit, built by `scripts/build_mpslib.sh` with a
   receipt, run as a supervised subprocess.
+- [03, PyTorch and ONNX](frameworks/03_pytorch-onnx/pytorch-onnx.md): the learned methods' training, the ONNX export
+  with its audit, and the CPU, CUDA and ONNX parity; pinned in `requirements-gpu.txt`.
 - [Card template](frameworks/00_TEMPLATE.md), copied per engine to `frameworks/<NN>_<tool>/<tool>.md`.
-
-The engines of the learned methods (PyTorch and ONNX Runtime, unit SD-7) get their cards with the unit that pins them.

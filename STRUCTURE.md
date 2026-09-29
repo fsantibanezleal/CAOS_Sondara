@@ -11,8 +11,9 @@ data-pipeline/            the offline pipeline, run by path: python data-pipelin
                           (export and validate come with unit SD-8)
   source_io.py            downloads, byte and hash checks, JSON and table readers, stable hashes
   source_adapters/        Rocklea, Alberta and NTGS into the canonical project; the manifest importer for user files
-  stages/                 preprocess, dataset, features, models, estimators, train, infer, evaluate, scenarios
-  learned/                contracts and modules for the learned methods (unit SD-7)
+  stages/                 preprocess, dataset, features, models, estimators, train, infer, evaluate, scenarios;
+                          categories, training_images, mps, categorical (the categorical lane); learned (the learned lane)
+  learned/                the learned methods' binding, transforms, networks, fits and audited ONNX export
   requirements.txt        the pipeline's pins, GeoCond among them
 data/                     source declarations, the bundled NTGS subset, fixtures, the scenario registry (data/README.md)
 schemas/                  project.schema.json (drillhole.project/v2) and import.schema.json (drillhole.import/v1)
@@ -26,5 +27,5 @@ deploy/                   the nginx site and the Pages notes for sondara.ml.fasl
 
 Derived outputs are never committed: the pipeline writes them to `build/derived/` (or `--out`), and raw downloads go
 to `$SONDARA_RAW` outside the repository. Two virtual environments keep the lanes apart: `.venv-pipeline`
-(`requirements-precompute.txt`, Python 3.12, the pipeline and its tests) and `.venv-gpu` (`requirements-gpu.txt`, the
-learned methods).
+(`requirements-precompute.txt`, Python 3.12, the pipeline and its tests) and `.venv-gpu` (`requirements-gpu.txt`: the
+pipeline plus PyTorch CUDA, onnx and ONNX Runtime, for the learned lane and the S11 check).

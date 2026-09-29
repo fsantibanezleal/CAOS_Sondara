@@ -217,9 +217,84 @@ def reproduction(sgs_rows, ok_rows, truth, info, training) -> dict:
                       "is compared with the truths there; the training histogram is shown for reference"}
 
 
-def evaluate_family(family, project, pre, dataset, predictions, models=None) -> dict:
+#: The learned residual band: this quantile of the calibration rows' absolute residuals (design section 2).
+BAND_QUANTILE = 0.95
+
+
+def learned_scores(method_record, targets, common, truth, info, training_range, ok_predicted) -> dict:
+    """A learned method scored like the classical ones on the same targets, plus its seeds, spread, residual band
+    (radius from the calibration rows, coverage on the test rows) and controls (docs/design/features/
+    learned-regression/design.md, section 6)."""
+    low, high = training_range
+    rows = method_record["rows"]
+    got = {r["id"]: r for r in rows if r["status"] in PREDICTED}
+    own = [t for t in targets if t in got]
+    shared_common = [t for t in common if t in got]
+
+    def errors(ids, value=lambda r: r["mean"]):
+        return [value(got[t]) - truth[t] for t in ids]
+
+    def scores(ids, value=lambda r: r["mean"]):
+        return _scores(errors(ids, value), [info[t]["length"] for t in ids], [info[t]["hole"] for t in ids])
+
+    entry = {"coverage": len(own) / max(1, len(rows)),
+             "statuses": dict(sorted({s: sum(r["status"] == s for r in rows) for s in {r["status"] for r in rows}}
+                                     .items())),
+             "selected": method_record.get("selected")}
+    outside = [t for t in own if not low <= got[t]["mean"] <= high]
+    entry["outsideTrainingRange"] = {"count": len(outside), "fraction": len(outside) / max(1, len(own)),
+                                     "extremes": [min((got[t]["mean"] for t in own), default=None),
+                                                  max((got[t]["mean"] for t in own), default=None)]}
+    entry["own"] = scores(own)
+    entry["common"] = {**scores(shared_common), "classicalCommonMissed": len(common) - len(shared_common)}
+    shared = [t for t in own if t in ok_predicted]
+    entry["versusOrdinaryKriging"] = paired(errors(shared), [ok_predicted[t]["mean"] - truth[t] for t in shared],
+                                            [info[t]["hole"] for t in shared])
+    with_seeds = [t for t in own if got[t].get("seeds")]
+    if with_seeds:
+        count = len(got[with_seeds[0]]["seeds"])
+        entry["seeds"] = [scores(with_seeds, lambda r, s=s: r["seeds"][s]) for s in range(count)]
+        spread = np.array([got[t]["spread"] for t in with_seeds])
+        entry["spread"] = {"meaning": "standard deviation of the seed predictions; model-fit spread, not a variance",
+                           "mean": float(spread.mean()), "median": float(np.median(spread)),
+                           "max": float(spread.max())}
+    calibration = [r for r in method_record.get("calibrationRows", [])
+                   if r["status"] in PREDICTED and r["id"] in truth]
+    if calibration and own:
+        residuals = np.abs([r["mean"] - truth[r["id"]] for r in calibration])
+        radius = float(np.quantile(residuals, BAND_QUANTILE, method="higher"))
+        inside = np.abs(errors(own)) <= radius
+        entry["residualBand"] = {"quantile": BAND_QUANTILE, "radius": radius, "calibrationRows": len(calibration),
+                                 "testCoverage": float(inside.mean()), "testRows": len(own),
+                                 "assumption": "calibration and test holes exchangeable; the test coverage shows "
+                                               "whether that held"}
+    controls = {}
+    for name, control in method_record.get("controls", {}).items():
+        crows = {r["id"]: r for r in control["rows"] if r["status"] in PREDICTED}
+        ids = [t for t in own if t in crows]
+        controls[name] = {"scores": _scores([crows[t]["mean"] - truth[t] for t in ids],
+                                            [info[t]["length"] for t in ids], [info[t]["hole"] for t in ids]),
+                          "versusMethod": paired([crows[t]["mean"] - truth[t] for t in ids], errors(ids),
+                                                 [info[t]["hole"] for t in ids])}
+    if controls:
+        entry["controls"] = controls
+    if method_record.get("exports"):
+        entry["exports"] = {"count": len(method_record["exports"]),
+                            "onnxMaxAbsolute": max(e["parity"]["onnxCpuMaxAbsolute"]
+                                                   for e in method_record["exports"]),
+                            "cudaMaxAbsolute": max((e["parity"]["torchCudaMaxAbsolute"] or 0.0)
+                                                   for e in method_record["exports"]),
+                            "tolerance": method_record["exports"][0]["parity"]["tolerance"]}
+    return entry
+
+
+def evaluate_family(family, project, pre, dataset, predictions, models=None, learned=None) -> dict:
     out = {"schema": SCHEMA, "family": family, "inputPredictionsSha256": stable_hash(predictions),
            "bootstrap": {"reps": BOOTSTRAP, "seed": SEED, "unit": "hole"}, "schemes": []}
+    learned_by = {} if learned is None or not learned.get("eligible") else {
+        (s["scheme"], p["population"]): p for s in learned["schemes"] for p in s["populations"]}
+    if learned is not None:
+        out["inputLearnedPredictionsSha256"] = stable_hash(learned)
     if not predictions.get("eligible"):
         return {**out, "eligible": False, "reason": predictions.get("reason")}
     by_scheme = {s["id"]: s for s in dataset["schemes"]}
@@ -243,6 +318,17 @@ def evaluate_family(family, project, pre, dataset, predictions, models=None) -> 
             training = [r["values"][analyte] for r in rows["train"] if analyte in r["values"]]
             low, high = min(training), max(training)
             record["trainingRange"] = [low, high]
+            # The constant reference: every test target predicted by the training mean, on the same targets.
+            mean = float(np.mean(training))
+            ids = [t for t in p["targets"] if t in truth]
+            ok_rows = {r["id"]: r for r in p["methods"]["ordinary-kriging"]["rows"] if r["status"] in PREDICTED}
+            shared = [t for t in ids if t in ok_rows]
+            record["trainingMeanReference"] = {
+                "value": mean, "scores": _scores([mean - truth[t] for t in ids], [info[t]["length"] for t in ids],
+                                                 [info[t]["hole"] for t in ids]),
+                "versusOrdinaryKriging": paired([mean - truth[t] for t in shared],
+                                                [ok_rows[t]["mean"] - truth[t] for t in shared],
+                                                [info[t]["hole"] for t in shared])}
             for m in METHODS:
                 rows_m = p["methods"][m]["rows"]
                 entry_m = {"coverage": sum(r["status"] in PREDICTED for r in rows_m) / max(1, len(rows_m)),
@@ -279,6 +365,15 @@ def evaluate_family(family, project, pre, dataset, predictions, models=None) -> 
                         p["methods"][m]["rows"], p["methods"]["ordinary-kriging"]["rows"],
                         {t: truth[t] for t in p["targets"] if t in truth}, info, training)
                 record["methods"][m] = entry_m
+            lp = learned_by.get((pscheme["scheme"], p["population"]))
+            if lp is not None:
+                if lp["targets"] != p["targets"] or lp["calibrationTargets"] != p["calibrationTargets"]:
+                    raise ValueError(f"{family} {pscheme['scheme']} {p['population']}: the learned targets differ "
+                                     "from the classical ones; run the learned lane again")
+                record["learned"] = {"status": lp["status"], **({"reason": lp["reason"]} if lp.get("reason") else {})}
+                for m, lm in lp["methods"].items():
+                    record["methods"][m] = learned_scores(lm, p["targets"], common, truth, info, (low, high),
+                                                          predicted["ordinary-kriging"])
             if "variants" in p:
                 record["variants"] = {}
                 base = predicted["ordinary-kriging"]
@@ -303,6 +398,7 @@ def evaluate_family(family, project, pre, dataset, predictions, models=None) -> 
                                                               "infer": predictions.get("engine"),
                                                               "evaluate": engine()},
                "inputs": {"datasetSha256": stable_hash(dataset), "predictionsSha256": stable_hash(predictions),
-                          "modelsSha256": None if models is None else stable_hash(models)},
+                          "modelsSha256": None if models is None else stable_hash(models),
+                          "learnedPredictionsSha256": None if learned is None else stable_hash(learned)},
                "resultSha256": stable_hash(out["schemes"])}
     return {**out, "receipt": receipt, "eligible": True}

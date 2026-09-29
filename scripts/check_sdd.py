@@ -8,6 +8,12 @@ Three checks, in increasing strength:
 3. **The named gate exists.** The file is on disk and, when the gate names a test, that test name
    appears in it.
 
+A feature designed before its code opens its ``requirements.md`` with the line ``Status: planned``
+(conventions/spec-driven-development.md, 2026-09-28). Its gates cannot exist yet, so check 3 is not
+applied to it; checks 1 and 2 are, every gate must still name a file, and its requirements are counted
+and listed apart so a planned gate is never reported as a real one. The feature's convergence verdict
+removes the line, and from then on its gates must exist.
+
 Check 3 is the one that matters. A requirement can name ``tests/test_nothing.py::test_imaginary``
 and satisfy check 2 while verifying nothing at all, which is precisely the failure the rule was
 written for: not a missing gate, but a gate that is believed and measures nothing. A guard that
@@ -38,6 +44,9 @@ CODE_DIRECTORIES = ("src", "app", "data-pipeline", "frontend/src")
 
 #: Gates that name something other than a file, and what makes each acceptable.
 NON_FILE_GATE_PREFIXES = ("manual:", "review:")
+
+#: The line that marks a feature designed before its code; it must come before the first requirement.
+PLANNED = "Status: planned"
 
 
 def find_code(root: Path) -> list[Path]:
@@ -127,10 +136,26 @@ def gate_exists(root: Path, gate: str) -> tuple[bool, str]:
     return True, ""
 
 
-def check_document(root: Path, document: Path) -> list[str]:
+def is_planned(text: str) -> bool:
+    """True when the ``Status: planned`` line stands on its own before the first requirement block."""
+    for line in text.splitlines():
+        if line.startswith("```"):
+            return False
+        if line.strip() == PLANNED:
+            return True
+    return False
+
+
+def check_document(root: Path, document: Path, planned: list[str] | None = None) -> list[str]:
+    """The findings for one document; a planned document's requirements are appended to ``planned``."""
     problems: list[str] = []
-    text = document.read_text(encoding="utf-8", errors="replace")
+    # A feature document is passed relative to the root, so read it there, not from the working directory.
+    text = (root / document).read_text(encoding="utf-8", errors="replace")
     requirements = parse_requirements(text)
+    is_plan = is_planned(text)
+    if is_plan and document.as_posix().endswith(SDD_PATH.as_posix()):
+        problems.append(f"{document}: the design document itself cannot be planned; only a feature can")
+        is_plan = False
 
     if not requirements:
         problems.append(f"{document}: contains no requirements (expected lines starting 'R-NNN')")
@@ -154,6 +179,13 @@ def check_document(root: Path, document: Path) -> list[str]:
             )
             continue
 
+        if is_plan:
+            if gate.startswith(NON_FILE_GATE_PREFIXES) or "/" not in gate.partition("::")[0]:
+                problems.append(f"{label}: a planned gate must still name a file in the repository, not {gate!r}")
+            elif planned is not None:
+                planned.append(f"{label} -> {gate}")
+            continue
+
         ok, why = gate_exists(root, gate)
         if not ok:
             problems.append(f"{label}: {why}")
@@ -164,6 +196,7 @@ def check_document(root: Path, document: Path) -> list[str]:
 def main(argv: list[str]) -> int:
     root = Path(argv[1] if len(argv) > 1 else ".").resolve()
     problems: list[str] = []
+    planned: list[str] = []
 
     sdd = root / SDD_PATH
     code = find_code(root)
@@ -181,15 +214,20 @@ def main(argv: list[str]) -> int:
         problems += check_document(root, sdd)
 
     for feature in sorted(root.glob(FEATURE_GLOB)):
-        problems += check_document(root, feature.relative_to(root))
+        problems += check_document(root, feature.relative_to(root), planned)
 
+    if planned:
+        print(f"planned, gates not yet checked ({len(planned)}):")
+        for item in planned:
+            print(f"  {item}")
     if problems:
         print("SDD gate failed:")
         for problem in problems:
             print(f"  {problem}")
         return 1
 
-    print(f"SDD gate passed: {sdd.relative_to(root)}, every requirement names a gate that exists")
+    live = "every live requirement names a gate that exists"
+    print(f"SDD gate passed: {sdd.relative_to(root)}, {live}" + (f"; {len(planned)} planned" if planned else ""))
     return 0
 
 

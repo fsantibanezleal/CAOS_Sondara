@@ -1,38 +1,13 @@
-"""Observed field errors and separately labelled constructed-alteration scores."""
+"""Constructed alterations for the geochemical autoencoder review (unit SD-7b).
+
+The learned regression methods are scored by ``stages/evaluate.py`` with the classical ones (audit L-4 of the
+2026-09-28 research); this module keeps the perturbation experiment, which SD-7b corrects (audit L-3: the
+transformed-additive perturbations are marked altered without being applied) and runs.
+"""
 
 from __future__ import annotations
 
 import numpy as np
-
-
-def regression_metrics(observed: np.ndarray, predicted: np.ndarray, holes: np.ndarray,
-                       lengths: np.ndarray, eligible: np.ndarray | None = None) -> dict:
-    if eligible is None:
-        eligible = np.isfinite(predicted)
-    good = eligible & np.isfinite(predicted) & np.isfinite(observed)
-    count = int(good.sum())
-    base = {"expected": len(observed), "estimated": count, "unestimated": int((~good).sum()),
-            "coverage": float(good.mean()) if len(good) else 0}
-    if not count:
-        return base | {"mae": None, "rmse": None, "bias": None, "holeMacroRmse": None,
-                       "lengthWeightedRmse": None}
-    error = predicted[good] - observed[good]
-    groups = holes[good]
-    return base | {"mae": float(np.mean(np.abs(error))), "rmse": float(np.sqrt(np.mean(error**2))),
-                   "bias": float(np.mean(error)),
-                   "holeMacroRmse": float(np.mean([np.sqrt(np.mean(error[groups == h] ** 2))
-                                                   for h in np.unique(groups)])),
-                   "lengthWeightedRmse": float(np.sqrt(np.average(error**2, weights=lengths[good])))}
-
-
-def residual_calibration(observed: np.ndarray, predicted: np.ndarray) -> dict:
-    residuals = np.abs(observed - predicted)
-    residuals = residuals[np.isfinite(residuals)]
-    if len(residuals) == 0:
-        raise ValueError("calibration has no valid observations")
-    return {"kind": "empirical-absolute-residual-band", "nominal": .95,
-            "radius": float(np.quantile(residuals, .95, method="higher")), "count": len(residuals),
-            "claim": "empirical calibration; spatial exchangeability is not assumed"}
 
 
 def perturbations(values: np.ndarray, holes: np.ndarray, properties: list[str], seed: int) -> list[dict]:

@@ -4,6 +4,39 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.11.000], 2026-09-28
+
+### Added
+- The learned lane (unit SD-7, first release) inside `train`, `infer` and `evaluate` (`--lane learned`, in
+  `.venv-gpu`): DeepKriging (Chen, Li, Reich and Sun 2024; the Wendland basis computed inside the model) and KCN
+  (Appleby, Liu and Liu 2020; eqs. 9 and 3 inside the model, the self weight of 2 as in the paper) on the classical
+  splits and targets of every estimated population. Frozen searches (8 and 12 configurations), three seeds each,
+  selection by the seed mean of the validation hole-macro RMSE, the three-seed mean published with its spread and no
+  variance, shuffled-label and coordinate-only controls, an empirical residual band sized on the calibration holes.
+- Resumable fits identified by their recipe hash, weights saved as tensors only; ONNX export through the torch.export
+  exporter with every metadata field removed and a path scan, audited (standard operators, no control flow, byte and
+  node budgets), bound to its project, with CPU, CUDA and ONNX parity on every held-out input.
+- `evaluate` scores the learned methods beside the classical ones on the same targets (paired with OK), and every
+  population gets a training-mean reference. Requirements R-701 to R-717 with their tests (`tests/test_learned.py`);
+  the learned checks in `scripts/check_artifacts.py`; the PyTorch and ONNX framework card; the learned figure.
+- Results: on Rocklea both methods learned the between-hole structure (their shuffled-label controls are 2.3 to 5.4
+  wt% of MAE worse) but neither beats OK: hole-group 1 m RMSE 14.11 (DeepKriging, interval containing zero) and 14.56
+  (KCN, worse on all three supports) against 13.53. Without its basis DeepKriging extrapolates at the margin down to
+  -58.8 wt% Fe. On Alberta the learned models score below OK but no better than their controls, and the training mean
+  alone scores lower still: no spatial skill over a constant with 13 training holes. Parity within 2e-5 against
+  tolerances of 1.5e-3 to 1.8e-3. The scenario matrix has 58 computed, 20 verified and 5 pending cells (SD-7 1, SD-8
+  4), none missing.
+
+### Fixed
+- `scripts/setup.sh` and `.ps1` aborted on a bare `pip install` left from the template's editable package;
+  `precompute.ps1` ran the global Python instead of its environment; `smoke` named the old project contract. Setup
+  builds `.venv-gpu` on request, and precompute and smoke use it when it exists.
+- The SDD guard read feature documents from the working directory instead of its root argument; it now also accepts
+  `Status: planned` for a feature designed before its code (R-005).
+- Guides 01 (precompute) and 03 (GPU lane) and the scripts README were still the template's text; rewritten, and the
+  residue guard learns their markers. The 0.2 learned modules, which no stage called, were audited: their split code
+  and schema are removed and the KCN graph uses one metric.
+
 ## [0.10.000], 2026-09-27
 
 ### Added

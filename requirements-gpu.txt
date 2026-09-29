@@ -1,8 +1,11 @@
-# GPU lane (.venv-gpu): the S11 Direct Sampling parity check (scripts/check_simulation.py) and, with unit SD-7, the
-# learned methods. PyTorch comes from its CUDA 12.6 index; verified on an RTX 4070 Laptop GPU with torch 2.14.0+cu126.
-#   python -m venv .venv-gpu
-#   .venv-gpu/Scripts/python -m pip install -r requirements-gpu.txt
+# GPU lane (.venv-gpu): the learned methods (unit SD-7: DeepKriging and KCN training, ONNX export and parity) and the
+# S11 Direct Sampling parity check (scripts/check_simulation.py). PyTorch comes from its CUDA 12.6 index; verified on
+# an RTX 4070 Laptop GPU with torch 2.14.0+cu126 (docs/frameworks/03_pytorch-onnx/pytorch-onnx.md).
+#   ./scripts/setup.sh --gpu        (or: python -m venv .venv-gpu; .venv-gpu/Scripts/python -m pip install -r requirements-gpu.txt)
 --extra-index-url https://download.pytorch.org/whl/cu126
 -r requirements-precompute.txt
 -r requirements-dev.txt   # the CUDA gates (tests marked cuda) run here
 torch==2.14.0
+onnx==1.22.0          # learned/exporting.py: the exported graph, its audit and checker
+onnxscript==0.7.2     # torch.onnx.export(dynamo=True), the torch.export exporter
+onnxruntime==1.29.0   # learned/exporting.py: the ONNX parity on the held-out inputs

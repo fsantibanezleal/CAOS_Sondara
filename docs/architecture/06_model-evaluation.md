@@ -27,6 +27,8 @@ Every method predicts the same targets from the same training rows and neighbour
 | MIK | Brier and log scores per threshold against the constant training proportion | a probability must beat the climatology |
 | SGS | fair CRPS, 80 % interval coverage, convergence at 8, 16 and 32 realizations, and the reproduction of the truths' histogram and downhole variogram | simulation is for variability; its E-type is not its purpose |
 | Training range | estimates outside the training minimum and maximum | extrapolation is reported, not hidden |
+| Training-mean reference | the training mean predicted at every test target, scored and paired with OK | a method must beat a constant before its spatial skill is claimed |
+| Learned methods | each seed's scores, the seed spread, an empirical 95 % residual band sized on the calibration holes with its test coverage, and two controls (shuffled labels; coordinates only) | the controls separate spatial learning from fitting the mean |
 
 **Variance calibration.** With $z_i = (\hat{y}_i - y_i)/\sigma_i$ on the calibration holes, the scale is
 $s = \overline{z^2}$, and the test z-scores are divided by $\sqrt{s}$. A scale near one says the kriging variances are
@@ -62,7 +64,7 @@ training proportion as the reference. Log scores clip probabilities to $[10^{-3}
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../assets/evaluate-rocklea-methods-dark.svg">
-  <img alt="Forest plot of each method's and each scenario variant's mean absolute-error difference with ordinary kriging and its 95 % hole-block interval: nearest neighbour, universal kriging and the SGS E-type are worse; simple kriging is 0.08 wt% worse; inverse distance, cokriging and the four ordinary-kriging variants overlap zero; cokriging with the secondaries measured at the target is far better." src="../assets/evaluate-rocklea-methods-light.svg" width="780">
+  <img alt="Forest plot of each method's and each scenario variant's mean absolute-error difference with ordinary kriging and its 95 % hole-block interval: nearest neighbour, universal kriging and the SGS E-type are worse; simple kriging is 0.08 wt% worse; inverse distance, cokriging and the four ordinary-kriging variants overlap zero; DeepKriging overlaps zero and KCN is worse; cokriging with the secondaries measured at the target is far better." src="../assets/evaluate-rocklea-methods-light.svg" width="780">
 </picture>
 
 - **The kriging family ties.** SK and OK differ by 0.08 wt% of MAE; LMC cokriging with SiO2 and Al2O3 does not improve
@@ -192,9 +194,21 @@ weak evidence.
 | UK | 7.33 | +0.39 [-0.18, +1.20] | 16.21 | +4.63 [-0.47, +11.12] |
 | LMC cokriging (Cu with Zn) | 6.29 | +0.78 [-1.06, +5.20] | 10.69 | +1.93 [+0.58, +2.89] |
 | SGS (E-type) | 5.58 | -0.37 [-1.17, +0.76] | 11.36 | -0.04 [-0.92, +0.80] |
+| DeepKriging (3 seeds) | 4.81 | -0.76 [-1.22, -0.19] | 11.05 | -0.16 [-0.46, +0.04] |
+| KCN (3 seeds) | 4.80 | -0.80 [-1.19, -0.35] | 11.38 | -0.01 [-0.08, +0.07] |
+| DeepKriging, shuffled labels | 4.78 | | 11.05 | |
+| KCN, shuffled labels | 4.80 | | 11.36 | |
+| Training mean (a constant) | 4.66 | -0.57 [-0.88, +0.23] | 10.85 | -0.15 [-0.67, +0.25] |
 
-- No method separates from OK inside the drilled area; Zn does not help Cu (A03), consistent with the weak association
-  the data dossier recorded.
+- No classical method separates from OK inside the drilled area; Zn does not help Cu (A03), consistent with the weak
+  association the data dossier recorded.
+- **The learned methods' edge over OK on the hole-group split is not spatial learning.** Their shuffled-label
+  controls, fitted to the Cu values permuted among the training rows, score the same (MAE differences +0.006 and
+  +0.05 ppm), and early stopping kept the weights of epochs 1 to 4 for five of the six seeds (one KCN seed ran to
+  epoch 101): with 102 training envelopes in 13
+  holes, the validation holes favour a model close to the training mean. The training mean itself (8.74 ppm, the
+  constant reference row) scores RMSE 4.66, below OK and both learned methods: on these 28 skewed test values no
+  method shows spatial skill over a constant. The controls and the reference are what show it.
 - The kriging variances are too large: OK's scale is 0.19 on the hole-group split, where every test value falls
   inside the 95 % interval before calibration, and 0.31 on the margin. The scale rests on two calibration holes.
 - MIK has no skill on the hole-group split (Brier skill -0.14 to -0.00) and little on the margin (-0.02 to 0.40):
@@ -295,6 +309,56 @@ reproduces an authored image's 2 x 2 pattern frequencies: total variation 0.011,
 Direct Sampling case, 30,786 nodes, the same candidate for every node on the CPU and on CUDA) pass on this machine and
 are recorded in `simulation-checks.json`.
 
+## The learned methods (DeepKriging and KCN)
+
+DeepKriging and KCN (0.11.000, [the learned-regression design](../design/features/learned-regression/design.md)) are
+trained on the same training rows, select their configuration on the same validation holes, and predict the same
+targets. Each is published as the mean of three seeds of the configuration with the lowest mean validation hole-macro
+RMSE. Two controls are fitted with the selected configuration: the training values permuted among the training rows
+(shuffled labels), and, for DeepKriging, the position alone without the basis (coordinates only). The training mean,
+predicted everywhere, is the constant reference.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/evaluate-rocklea-learned-dark.svg">
+  <img alt="Two panels per split for Rocklea Fe at 1 m. Left, test RMSE: hole-group OK 13.53, DeepKriging 14.11, KCN 14.56, their shuffled-label controls 17.42 and 17.69, DeepKriging on coordinates only 13.25; spatial margin OK 17.48, DeepKriging 15.97, KCN 17.25, shuffled 20.59 and 19.60, coordinates only 33.94. Right, the validation RMSE by epoch of the three seeds of each selected configuration, falling from about 16.8 to 12.8 on the hole-group split and to 11.1 on the margin, where DeepKriging's seeds stop early." src="../assets/evaluate-rocklea-learned-light.svg" width="800">
+</picture>
+
+**Rocklea Fe, RMSE in wt% on the test targets, and the paired MAE difference with OK (95 % hole-block interval):**
+
+| Split, support | OK | DeepKriging | MAE minus OK's | KCN | MAE minus OK's | Shuffled labels (DK, KCN) | Coordinates only | Training mean |
+|---|---:|---:|---|---:|---|---|---:|---:|
+| hole-group, 1 m | 13.53 | 14.11 | -0.14 [-0.91, +0.51] | 14.56 | +0.76 [+0.21, +1.36] | 17.42, 17.69 | 13.25 | 17.65 |
+| hole-group, 2 m | 12.79 | 12.95 | -0.67 [-1.51, +0.05] | 13.70 | +0.78 [+0.19, +1.41] | 16.74, 16.78 | 13.57 | 16.75 |
+| hole-group, 5 m | 11.34 | 10.96 | -0.77 [-1.72, +0.13] | 12.47 | +1.39 [+0.81, +1.95] | 14.88, 14.83 | 12.17 | 14.82 |
+| spatial-margin, 1 m | 17.48 | 15.97 | +0.33 [-1.09, +1.73] | 17.25 | +1.05 [-0.69, +2.93] | 20.59, 19.60 | 33.94 | 21.20 |
+| spatial-margin, 2 m | 15.74 | 15.53 | +0.67 [-0.55, +1.78] | 16.16 | +0.90 [-0.67, +2.48] | 20.57, 20.83 | 20.63 | 20.51 |
+| spatial-margin, 5 m | 14.67 | 13.69 | +0.05 [-1.94, +1.85] | 13.97 | -0.16 [-3.00, +2.65] | 18.34, 15.91 | 20.83 | 18.99 |
+
+- **Both methods learned spatial structure at Rocklea.** Every shuffled-label control is 2.3 to 5.4 wt% of MAE worse
+  than its method, and the training mean is 4.0 to 5.5 wt% of MAE worse than OK: the grade varies between holes and the
+  methods use it.
+- **Neither beats OK on the drilled area.** DeepKriging's MAE differences all have intervals containing zero (its RMSE
+  is higher at 1 m and 2 m, lower at 5 m); KCN is worse than OK on all three hole-group supports, with intervals
+  above zero. At the margins no learned method separates from OK in either direction.
+- **The basis matters where extrapolation starts.** On the position alone, DeepKriging scores 13.25 inside the drilled
+  area (better than with the basis, 14.11) but 33.94 at the 1 m margin, where 497 of the 527 test targets lie outside
+  the training box: there it predicts down to -58.8 wt% Fe, and 283 predictions fall outside the training range. A ReLU
+  network is piecewise linear and continues its last pieces beyond the data; with the basis, the fitted networks stayed
+  inside the training range at the margin (2.1 to 33.7 wt%). Inside the drilled area DeepKriging still made 6
+  predictions outside the training range, the lowest -3.2 wt%: nothing in the network bounds a grade at zero.
+- **The search's edges.** KCN selected the largest kernel length ($\phi = 2\bar{d}$) on every population, so the
+  frozen search does not bracket its optimum; a wider search is a new recipe, recorded as such, not a revision of this
+  one. DeepKriging selected the compact 3/5/9 knot levels on five of six populations; the paper's finer 10/19 levels
+  won once (5 m, hole-group).
+- **Seeds and bands.** The seed spread averages 0.5 to 2.5 wt% (model-fit spread, not a predictive variance). The
+  empirical 95 % residual band, sized on the calibration holes, covers 0.93 of the hole-group 1 m test values for
+  both methods, and 0.96 (DeepKriging) and 0.89 (KCN) at the 1 m margin.
+- **Parity.** Every exported seed agrees with PyTorch on the CPU on every held-out input: ONNX Runtime within
+  $1.1 \times 10^{-5}$ wt% and PyTorch on CUDA within $1.9 \times 10^{-5}$, against tolerances of 1.5 to
+  $1.8 \times 10^{-3}$ ($10^{-4}$ training standard deviations).
+- **Cost.** Rocklea's six populations (414 fits: the searches and the controls, three seeds each) trained in 2,475 s on
+  an RTX 4070 Laptop GPU; the predictions and 36 exports with their parity took 81 s. Alberta took 40 s and 18 s.
+
 ## The scenario matrix
 
 `scenarios.json` resolves each registered scenario to cells: a method or variant computed from a family's metrics
@@ -304,23 +368,26 @@ metrics changed.
 
 | State | Scenarios |
 |---|---|
-| complete | R01, R04 to R09, A01, A03 to A08, S01 to S11 |
-| partial | R02 and A02 (the exported views, SD-8), R10 and R11 (DeepKriging and KCN, SD-7), S12 (export and re-import, SD-8) |
-| pending | R03 (fence section, SD-8), R12 (the spectral-index review, SD-7) |
+| complete | R01, R04 to R11, A01, A03 to A08, S01 to S11 |
+| partial | R02 and A02 (the exported views, SD-8), S12 (export and re-import, SD-8) |
+| pending | R03 (fence section, SD-8), R12 (the spectral-index review, SD-7, second release) |
 
-Cells: 54 computed, 20 verified by tests, 9 pending (5 for SD-7, 4 for SD-8), none missing. S10 and S11 count as
+Cells: 58 computed, 20 verified by tests, 5 pending (1 for SD-7, 4 for SD-8), none missing. S10 and S11 count as
 computed only when `simulation-checks.json` records them as passed, since their tests skip without MPSlib or CUDA.
 
 ## Receipts
 
 Every `metrics.json` carries a receipt: the split seeds and proportions, the neighbourhood plan (including the 12
 simulated nodes of SGS), the engine versions of fit, infer and evaluate (GeoCond 0.07.000, NumPy 2.5.3, SciPy 1.18.1),
-the hashes of the dataset, models and predictions it read, and the hash of the scored result, so every number on
+the hashes of the dataset, models and predictions it read (and the learned predictions, whose own records hold
+PyTorch 2.14.0+cu126, onnx 1.22.0 and ONNX Runtime 1.29.0), and the hash of the scored result, so every number on
 this page names the inputs and settings behind it.
 
 ## What it does not show
 
 These are held-out comparisons on two public datasets, not a resource estimate: the test holes are drilled holes, the
 supports are samples and envelope centres rather than blocks, and the classical methods here are compared under one
-neighbourhood plan chosen before evaluation, not tuned per method. SNESIM, Direct Sampling and the learned methods
-join the same comparison in units SD-6 and SD-7.
+neighbourhood plan chosen before evaluation, not tuned per method. The learned methods were tuned, on the validation
+holes only, over a search frozen before any test value was read; a model is bound to the project it was fitted on,
+and its predictions are values at the support centres, not block grades. Three test holes per scheme (Alberta) give
+weak evidence for every method, learned or not.
