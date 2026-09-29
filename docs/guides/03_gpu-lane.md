@@ -1,7 +1,8 @@
 # Guide, the GPU lane
 
-Sondara uses CUDA in two places, both offline: the learned methods (DeepKriging and KCN, unit SD-7) train on the
-device, and the Direct Sampling parity check S11 runs GeoCond's PyTorch backend against its NumPy one. Nothing in the
+Sondara uses CUDA in two places, both offline: the learned lane (DeepKriging and KCN, and for Rocklea the geochemical
+autoencoder review of R12, unit SD-7) trains on the device, and the Direct Sampling parity check S11 runs GeoCond's
+PyTorch backend against its NumPy one. Nothing in the
 published site needs a GPU: the browser receives precomputed results and, for the learned methods, ONNX models that
 run on the CPU.
 
@@ -40,6 +41,7 @@ What the three stages do, and what they write under `build/derived/<family>/`:
 | `train` | `learned-models.json`, `learned/fits/<scheme>/<population>/<method>/<configuration>/seed-<n>/` | every configuration of the frozen search with three seeds, the two controls; each fit holds `fit.json` (history, best epoch) and `weights.pt` (tensors only) |
 | `infer` | `learned-predictions.json`, `learned/exports/<scheme>/<population>/<method>/seed-<n>/` | the three-seed ensemble on the test and calibration targets; one ONNX file per seed with `manifest.json`, `parity.json` and `portable-model.zip` |
 | `evaluate` | `metrics.json` | the learned methods scored beside the classical ones on the same targets |
+| all three, Rocklea | `geochemistry-models.json`, `geochemistry-predictions.json`, `geochemistry-metrics.json`, `learned/geochemistry/`, `learned/exports/geochemistry/` | the autoencoder review of R12: fits for latent sizes 2 and 3 with three seeds, the PCA reference, the scored records and alterations, the review export with its parity |
 
 **Rerunning is cheap.** A finished fit whose recipe hash matches is reused, an interrupted one resumes from its last
 checkpoint (every 20 epochs), and one whose recipe differs is refused: remove its folder to refit. Delete

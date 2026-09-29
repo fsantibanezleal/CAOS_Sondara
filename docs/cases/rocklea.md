@@ -116,6 +116,22 @@ RMSE is 14.11 with an MAE difference whose interval contains zero, and KCN's 14.
 supports. Without its basis, DeepKriging extrapolates at the margins down to -58.8 wt% Fe. Tables, figures and
 caveats: [model evaluation](../architecture/06_model-evaluation.md).
 
+## The supplied spectral index (R12)
+
+The collection ships a hyperspectral export beside the assays. Its eight spectral columns are absorption depths and
+wavelengths computed by fixed scripts (the product descriptions workbook defines each one): `Fe ox ai` is the relative
+depth of the 900 nm iron-oxide absorption, and `hem/goe`, despite its name, is that absorption's wavelength in
+nanometres (about 890 hematitic, 910 goethitic), not a ratio. Its eleven assay-like columns are copies of the workbook
+assays (Fe rounded to a whole percent), put there to validate the scripts, so they are targets, never features. The
+embedded assays also show where the export's depths hold: 146 holes are confirmed, 8 are offset by one metre over part
+of their length and 4 match no nearby interval. Calibrated on the training holes' confirmed rows, the iron-oxide index
+predicts the test holes' Fe with RMSE 11.99 wt% against OK's 13.85 on the same 701 rows, without separating from OK
+(MAE difference -1.51 [-3.15, +0.07]); it measures the interval itself, which is a different task. The geochemical autoencoder review of the nine assay
+properties reconstructs held-out records better than PCA of the same rank (mean score 0.043 against 0.104) and flags
+a percent value read as ppm every time, a value multiplied by ten in 77 % of the records and a Fe and SiO2 pair from
+another hole in 38 % (PCA 20 %), while flagging 6 % of unchanged records; its flags direct review and are not findings
+about the rock or the laboratory. Tables and the figure: [model evaluation](../architecture/06_model-evaluation.md).
+
 ## What it can and cannot answer
 
 Rocklea supplies the grade and multivariable scenarios (R01 to R12): whole-hole and spatial-margin holdouts over 158

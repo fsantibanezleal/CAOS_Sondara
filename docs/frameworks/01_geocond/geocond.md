@@ -41,6 +41,7 @@ composite_intervals([0, 1], [1, 3], [2.0, 5.0], fixed_boundaries(0, 3, 2), min_c
 | `evaluate` (0.09.000) | none: the scores are Sondara's, on GeoCond's outputs | predictions, test and calibration truths | metrics, the scenario matrix |
 | categorical lane (0.10.000) | `direct_sampling` with `zones` (0.8.0), `geometry` | depth-grid conditioning, training images, one zone per depth layer | realizations with candidate provenance, CPU and CUDA parity (S11) |
 | learned lane (0.11.000) | none: DeepKriging and KCN are trained with PyTorch directly ([card](../03_pytorch-onnx/pytorch-onnx.md)) | the rows GeoCond's `preprocess` positioned | the learned models, scored beside GeoCond's methods |
+| R12 index check (0.12.000) | `probability.pava` | the iron-oxide index and Fe on the training holes' confirmed rows | a monotone calibration, linear between its knots |
 
 The contracts, equations and the tests against independent references (R/gstat, PyKrige, GSTools, welleng,
 scikit-learn) are in GeoCond's [methods pages](https://github.com/fsantibanezleal/GeoCond/tree/main/docs/methods).

@@ -26,7 +26,7 @@ Where each part runs, so no stage reaches back to a source it did not declare:
 | `features` | `spectral-lineage.json` | the products, the embedded-assay identity against the canonical assays, the registration per hole |
 | `train` | `spectral-models.json`; `geochemistry-models.json` and `learned/geochemistry/` (learned lane) | the index calibration with its test predictions; the autoencoder fits and the PCA reference |
 | `infer` | `geochemistry-predictions.json` and the review export (learned lane) | reconstruction scores of the calibration and test records and of the constructed alterations |
-| `evaluate` | `review-metrics.json` | the index check's scores beside OK, and the review's threshold, recalls and false flags |
+| `evaluate` | `spectral-metrics.json` (continuous lane); `geochemistry-metrics.json` (learned lane) | the index check's scores beside OK and the training mean; the review's thresholds, recalls and false flags |
 
 R12 uses the hole-group split and the 1 m population.
 
@@ -62,7 +62,8 @@ Each is centred by its training median and scaled by its training interquartile 
 property is removed with a record.
 
 - **Autoencoder:** p-32-8-k-8-32-p with ReLU hidden layers and a linear output, k in {2, 3}, AdamW (0.001, 0.0001), at
-  most 300 epochs, patience 30, three seeds; k selected by the seed mean of the validation reconstruction MSE.
+  most 300 epochs, patience 30, three seeds; k selected by the seed mean of the validation hole-macro reconstruction
+  RMSE (the mean over validation holes of each hole's root mean squared residual, in transformed units).
 - **PCA reference:** the same transformed training data and the selected rank.
 - **Scores:** the per-record reconstruction error and the per-property residuals on the test records; a review
   threshold at the calibration records' 95th percentile of the error. The title is compositional atypicality, not
@@ -78,8 +79,9 @@ property is removed with a record.
 
 ## 5. R12's cells
 
-`spectral-lineage.json` (the lineage), the calibration check's metrics, and the autoencoder review's metrics. With
-them the scenario matrix has no pending SD-7 cell.
+Three output cells: `spectral-lineage.json` (the lineage), `spectral-metrics.json` (the index check) and
+`geochemistry-metrics.json` (the review), each cited by hash so a stale matrix is detected. With them the scenario
+matrix has no pending SD-7 cell.
 
 ## 6. What it does not claim
 

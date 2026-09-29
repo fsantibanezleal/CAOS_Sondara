@@ -13,3 +13,6 @@
 
 - **0.12.000:** R-718 to R-727, each gate passing in `.venv-gpu`; the Rocklea run records the lineage, the index
   check and the review; the scenario matrix has no pending SD-7 cell. The `Status: planned` line is then removed.
+- **Verdict (2026-09-28):** converged. Every gate exists and passes in `.venv-gpu`; the Rocklea run wrote the lineage
+  (146 holes confirmed), the index check (701 test rows) and the review (6 fits, 3 exports within 4e-6); the
+  scenario matrix has 61 computed, 20 verified and 4 pending cells (all SD-8), none missing.

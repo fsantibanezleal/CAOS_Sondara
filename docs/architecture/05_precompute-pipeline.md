@@ -10,10 +10,10 @@ the repository (`--cache`, default `$SONDARA_RAW`, else `build/sources`); derive
 | # | Stage | Does | Status |
 |---|---|---|---|
 | 1 | `acquire` | Fetches the allowlisted sources of `data/sources/manifest.json` over HTTPS with byte bounds and SHA-256 checks, or copies a bundled licensed subset; writes an acquisition receipt | 0.03.000 |
-| 2 | `ingest` | Builds each family's canonical project: source namespaces, collars, surveys, trajectories, analytes, supports, determinations, geology, the QA issue table and the reconciliation waterfall, every row carrying its raw source row identity; with `--manifest`, imports user files as a transaction ([guide](../guides/02_bring-your-own-data.md)) | 0.03.000 (Rocklea, Alberta, NTGS); 0.06.000 (user imports) |
+| 2 | `ingest` | Builds each family's canonical project: source namespaces, collars, surveys, trajectories, analytes, supports, determinations, geology, the QA issue table and the reconciliation waterfall, every row carrying its raw source row identity; with `--manifest`, imports user files as a transaction ([guide](../guides/02_bring-your-own-data.md)); for Rocklea, the hyperspectral export and the files of its lineage as `spectral-source.json` | 0.03.000 (Rocklea, Alberta, NTGS); 0.06.000 (user imports); 0.12.000 (the spectral source) |
 | 3 | `preprocess` | Exact desurvey, support positions, compositing, the log overlay and the modeling populations, through GeoCond | 0.04.000 (Rocklea, Alberta, NTGS) |
 | 4 | `dataset` | Frozen hole-group, spatial-margin and declared train, validation, calibration and test assignments; every derivative stays with its hole | 0.07.000 |
-| 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations | 0.07.000 |
+| 5 | `features` | Training-only statistics, cell declustering, downhole, directional and cross experimental variograms, declared orientations; for Rocklea, the spectral export's lineage | 0.07.000; 0.12.000 (the lineage) |
 | 6 | `train` | Covariance candidates selected on validation, residual covariance for universal kriging, LMC, indicator covariances and normal scores; for Alberta, the reviewed lithology mapping, depth-grid conditioning and two training images; DeepKriging and KCN fitted over their frozen searches with three seeds, selected on validation, with their controls | 0.08.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
 | 7 | `infer` | NN, IDW, SK, OK, UK, LMC cokriging, MIK and SGS on identical test targets; SNESIM and Direct Sampling realizations for Alberta; the DeepKriging and KCN three-seed ensembles on the same targets, exported to ONNX with their parity | 0.08.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
 | 8 | `evaluate` | Scores against the test truths, paired hole-block comparisons with OK, variance calibration on the calibration holes, MIK Brier and log scores, SGS fair CRPS, coverage, convergence and reproduction; categorical Brier and log scores, proportions, connectivity and hole connections for Alberta; the learned methods beside the classical ones with their seeds, residual band and controls; the scenario matrix | 0.09.000 (classical); 0.10.000 (categorical); 0.11.000 (learned) |
@@ -173,6 +173,18 @@ DeepKriging and KCN run as a third lane of `train`, `infer` and `evaluate` (`--l
 `evaluate` adds `deepkriging` and `kcn` to each population's methods in `metrics.json`, with the classical scores on
 the same targets and the learned fields (seeds, spread, residual band, controls). `scripts/check_artifacts.py` checks
 the search, the selection rule, every weights hash, every prediction row and every export's audit and parity.
+
+## The R12 review (Rocklea)
+
+Scenario R12 asks what the supplied hyperspectral index represents. It runs in the existing stages (0.12.000;
+[the geochemical-review design](../design/features/geochemical-review/design.md)):
+
+| Output | Stage, lane | Holds |
+|---|---|---|
+| `spectral-source.json` (`drillhole.spectral-source/v1`) | `ingest` | the TSG export's rows (spectral scalars with their masks as null, embedded assay columns), the product descriptions workbook, the TSG project's parameters, the PLS file's hash, the exercise answers' validation statements, with source references |
+| `spectral-lineage.json` (`drillhole.spectral-lineage/v1`) | `features` | each spectral column's product, algorithm, unit, mask and stated accuracy (after `data/interpretations/rocklea-spectral-products-v1.json`); the embedded assay columns against the canonical assays; the depth registration of every hole |
+| `spectral-models.json`, `spectral-metrics.json` | `train`, `evaluate` (continuous) | the iron-oxide index calibrated on the training holes' confirmed rows (GeoCond `pava`) with its test predictions; its scores beside OK and the training mean on the same rows |
+| `geochemistry-models.json`, `geochemistry-predictions.json`, `geochemistry-metrics.json`, `learned/geochemistry/`, `learned/exports/geochemistry/` | `train`, `infer`, `evaluate` (learned) | the autoencoder fits (latent 2 or 3, three seeds) and the PCA reference; the scores of the calibration and test records and of the constructed alterations; the review export with its parity; the thresholds, recalls and false flags |
 
 ## Determinism
 

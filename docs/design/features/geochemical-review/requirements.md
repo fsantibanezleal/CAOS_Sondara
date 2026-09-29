@@ -1,7 +1,5 @@
 # Geochemical review and the spectral-index lineage (SD-7b): requirements
 
-Status: planned
-
 Each requirement names the test that verifies it (`tests/test_spectral.py` for the lineage and the calibration check,
 `tests/test_geochemistry.py` for the autoencoder review, run in `.venv-gpu`).
 

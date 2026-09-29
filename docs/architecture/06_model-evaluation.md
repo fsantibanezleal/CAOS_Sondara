@@ -359,6 +359,87 @@ predicted everywhere, is the constant reference.
 - **Cost.** Rocklea's six populations (414 fits: the searches and the controls, three seeds each) trained in 2,475 s on
   an RTX 4070 Laptop GPU; the predictions and 36 exports with their parity took 81 s. Alberta took 40 s and 18 s.
 
+## Rocklea R12: what the supplied spectral index represents
+
+R12 (0.12.000, [the geochemical-review design](../design/features/geochemical-review/design.md)) asks what the
+hyperspectral export shipped with the Rocklea collection actually holds. The answer comes from the collection's own
+files and from the canonical assays; the research is in the management repository
+(`wip/drillhole-workbench/learned-methods-2026-09-28.md`, section 3).
+
+**The spectral columns** (`spectral-lineage.json`, after the product descriptions workbook):
+
+| Column | Product | Unit | Values (median, range) | Masked or missing |
+|---|---|---|---|---:|
+| `Fe ox ai` | Ferric oxide abundance | relative depth of the 900 nm absorption | 0.184 (0.0013 to 0.355) | 548 |
+| `hem/goe` | Hematite-goethite distribution | nm: the wavelength of the 900 nm absorption, not a ratio | 911.1 (869.8 to 974.1) | 825 |
+| `kaolin abundance` | Kaolin abundance index | relative depth | 0.161 (0.017 to 0.413) | 3,645 |
+| `kaolin composition` | Kaolin composition index | band ratio | 1.007 (0.937 to 1.192) | 3,645 |
+| `wmAlsmai` | White mica and Al-smectite abundance | relative depth | 0.040 (0.020 to 0.285) | 5,821 |
+| `wmAlsmci` | White mica and Al-smectite composition | nm | 2,206.9 (2,186.3 to 2,233.1) | 5,821 |
+| `carbai3pfit` | Carbonates abundance | relative depth | 0.064 (0.040 to 0.182) | 7,176 |
+| `carbci3pfit` | Carbonate composition | nm | 2,321.9 (2,296.4 to 2,338.4) | 7,176 |
+
+Of 7,520 export rows, a masked scalar is null: the scripts' masks exclude samples whose spectra do not show the
+feature. Two products of the workbook (ferrous iron abundance, opaques) are not in the export.
+
+**The assay-like columns are the workbook's assays.** Against the canonical assays at the same hole and depth, each of
+the eleven columns agrees on about 96 % of the rows (`Fe %` on 4,792 of 4,974 after rounding the workbook Fe to a whole
+percent; Al2O3 and SiO2 on 4,777 of 4,974). They are copies of the target, imported into the TSG project to validate the
+scripts, and never enter a model as features.
+
+**Depth registration.** Comparing the embedded assays at the same depth and one or two metres away: 146 holes are
+confirmed, 8 are offset by one metre over part of the hole (RKC284, RKC292, RKC293, RKC296 and RKC300 deeper; RKC298,
+RKC380 and RKC389 shallower), 4 match no interval within two metres (RKC323, RKC437, RKC438, RKC444), and 34 are not
+in the canonical project; 25 hole-depth keys are duplicated. A spectral row is paired with an assay only in a
+confirmed hole.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/review-rocklea-dark.svg">
+  <img alt="Left: the iron-oxide index against Fe for 701 test rows of confirmed holes, with the monotone calibration fitted on the training holes rising in steps from about 5 to 56 wt% Fe; RMSE 11.99 against ordinary kriging's 13.85 on the same rows. Right: the share flagged at the review threshold by the autoencoder and PCA: one property times ten 0.77 and 0.77, a percent read as ppm 1.00 and 1.00, Fe and SiO2 from another hole 0.38 and 0.20, shifts of 0.25, 1 and 3 in transformed units 0.07 and 0.08, 0.28 and 0.15, 0.93 and 0.98, unchanged records 0.06 and 0.07." src="../assets/review-rocklea-light.svg" width="820">
+</picture>
+
+**What the iron-oxide index predicts.** A monotone calibration of Fe on `Fe ox ai`, fitted on 2,505 confirmed rows of 84
+training holes (390 rows excluded for unconfirmed registration, 62 masked, 28 on duplicate keys), predicts the test
+holes' confirmed rows:
+
+| On the same 701 test rows (21 holes) | RMSE (wt% Fe) | MAE | Bias |
+|---|---:|---:|---:|
+| Iron-oxide index, calibrated | 11.99 | 9.21 | +2.68 |
+| Ordinary kriging | 13.85 | 10.72 | -0.04 |
+| Training mean | 17.53 | 15.65 | +1.45 |
+
+The index's MAE is 1.51 wt% lower than OK's, but the 95 % hole-block interval of the difference, [-3.15, +0.07],
+reaches zero: on these 21 holes it does not separate from OK, and it carries a bias of +2.7 wt%. Its RMSE of 11.99 is
+close to the 11.3 wt% Fe the collection's exercise answers report (the descriptions workbook gives 9.7 %), neither with
+its method. The index measures the
+interval itself, which the spatial methods cannot; this is a different task, not an improvement of OK.
+
+**The geochemical review.** The autoencoder and its PCA reference read the nine properties of the 1 m records (Fe, P,
+SiO2, Al2O3, CaO, K2O, MgO, TiO2, LOI; 2,997 training, 758 validation, 510 calibration and 770 test records, none
+incomplete). Latent size 3 was selected (validation hole-macro reconstruction RMSE 0.214 to 0.229 over the seeds,
+against 0.281 to 0.301 for size 2); PCA of rank 3 keeps 87 % of the transformed variance. Every seed ran to the
+300-epoch cap with its best epoch between 281 and 300: the validation error was still falling, so the budget, not
+early stopping, ended the fits. That is recorded as a finding; changing the budget would be a new recipe.
+
+| On the 770 test records | Autoencoder | PCA |
+|---|---:|---:|
+| Mean reconstruction score (squared transformed units) | 0.043 | 0.104 |
+| Review threshold (95th percentile of the 510 calibration records) | 0.146 | 0.266 |
+| Unchanged records flagged | 0.064 | 0.074 |
+| One property multiplied by 10 | 0.77 | 0.77 |
+| A percent value read as ppm (x 10,000) | 1.00 | 1.00 |
+| Fe and SiO2 taken from a record of another hole | 0.38 | 0.20 |
+| A shift of 0.25 in transformed units on one property | 0.07 | 0.08 |
+| A shift of 1 | 0.28 | 0.15 |
+| A shift of 3 | 0.93 | 0.98 |
+
+The autoencoder reconstructs held-out records better than PCA of the same rank and notices a swapped Fe and SiO2 pair
+about twice as often; PCA flags the largest shifts slightly more often. Both flag unchanged records a little above the
+nominal 5 %, and a shift of 0.25 is not distinguishable from those false flags. A flagged record is atypical
+compared with the training records; it is not shown to be contaminated, mineralized or badly assayed. The highest
+test scores come from hole RKC397 (one record) and three consecutive records of RKC313, kept for review. The three
+exported review models (latent, residuals and score in one graph, 8 KB each) agree with PyTorch within 4e-6.
+
 ## The scenario matrix
 
 `scenarios.json` resolves each registered scenario to cells: a method or variant computed from a family's metrics
@@ -368,11 +449,12 @@ metrics changed.
 
 | State | Scenarios |
 |---|---|
-| complete | R01, R04 to R11, A01, A03 to A08, S01 to S11 |
+| complete | R01, R04 to R12, A01, A03 to A08, S01 to S11 |
 | partial | R02 and A02 (the exported views, SD-8), S12 (export and re-import, SD-8) |
-| pending | R03 (fence section, SD-8), R12 (the spectral-index review, SD-7, second release) |
+| pending | R03 (fence section, SD-8) |
 
-Cells: 58 computed, 20 verified by tests, 5 pending (1 for SD-7, 4 for SD-8), none missing. S10 and S11 count as
+Cells: 61 computed, 20 verified by tests, 4 pending (all SD-8), none missing. R12's three cells cite the lineage, the
+index check and the review by the hash of their files. S10 and S11 count as
 computed only when `simulation-checks.json` records them as passed, since their tests skip without MPSlib or CUDA.
 
 ## Receipts
