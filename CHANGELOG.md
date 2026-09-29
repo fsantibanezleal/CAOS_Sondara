@@ -4,6 +4,37 @@ All notable changes to this product. Format: `X.XX.XXX` (display) in `VERSION`, 
 semver in `frontend/package.json`. Keep `0.x` until the web product runs on the field families. Tag every
 release.
 
+## [0.12.000], 2026-09-28
+
+### Added
+- R12, the second release of unit SD-7: what the supplied Rocklea hyperspectral export represents. Four more files of
+  CSIRO collection 44783 are pinned (the product descriptions workbook, the TSG project, the TSG PLS model, the
+  exercise answers); `ingest` writes the export and those files as `spectral-source.json`, and a reviewed reading
+  (`data/interpretations/rocklea-spectral-products-v1.json`) names each column's product and unit.
+- `features` writes the lineage: each spectral scalar's product, algorithm, mask and stated accuracy; the eleven
+  assay-like columns identified as copies of the workbook assays (about 96 % identical, Fe rounded to a whole percent);
+  the depth registration of every hole (146 confirmed, 8 offset by one metre, 4 unmatched, 34 outside the canonical
+  project).
+- The iron-oxide index calibrated on Fe with a monotone fit (GeoCond `pava`) on the training holes' confirmed rows,
+  scored on the test holes' confirmed rows beside OK and the training mean.
+- The geochemical autoencoder review in the learned lane: nine properties, median and interquartile scaling with asinh,
+  latent size 2 or 3 with three seeds, a PCA reference of the same rank, a review threshold from the calibration
+  records, constructed alterations (the 0.2 module marked unaltered records as altered; fixed and tested) scored for
+  both, and a multi-output ONNX export (latent, residuals, score) with parity, bound to its property names and units.
+- R12's three output cells in the scenario matrix, cited by hash; the R12 artifact checks; the R12 figure; tests
+  R-718 to R-727.
+- Results (Rocklea): the export's `hem/goe` is a wavelength in nm, not a ratio; the iron-oxide index, calibrated on
+  2,505 confirmed training rows, predicts 701 test rows with RMSE 11.99 wt% Fe against OK's 13.85 on the same rows,
+  without separating from OK (MAE difference -1.51 [-3.15, +0.07]). The autoencoder (latent 3) reconstructs held-out
+  records better than PCA of rank 3 (0.043 against 0.104) and flags a Fe and SiO2 swap twice as often (0.38 against
+  0.20); both flag about 6 to 7 % of unchanged records. Every autoencoder seed ran to the 300-epoch cap, recorded as a
+  finding. The scenario matrix has 61 computed, 20 verified and 4 pending cells (SD-8), none missing: unit SD-7 is
+  complete.
+
+### Changed
+- The classical models and predictions were rebuilt under GeoCond 0.8.0: all 46,284 estimates, variances and
+  realizations are identical to the 0.07.000 build; only the recorded engine version changed.
+
 ## [0.11.000], 2026-09-28
 
 ### Added

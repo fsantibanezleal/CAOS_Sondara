@@ -49,6 +49,22 @@ def _receipt(check):
     return {"kind": "receipt", "check": check}
 
 
+def _output(family, file, what):
+    return {"kind": "output", "family": family, "file": file, "what": what}
+
+
+def _output_summary(file: str, record: dict) -> dict:
+    """The few numbers a matrix cell shows for a stage output of R12."""
+    if file == "spectral-lineage.json":
+        return {"registration": record["registration"]["counts"],
+                "embeddedEqualShare": {e["column"]: e["share"] for e in record["embedded"]}}
+    if file == "spectral-metrics.json":
+        return {"rows": record["rows"], "indexRmse": record["index"]["rmse"],
+                "ordinaryKrigingRmse": record["ordinaryKriging"]["rmse"]}
+    return {"thresholds": record["thresholds"],
+            "falseFlags": {m: record["alterations"]["unchanged"][m]["falseFlags"] for m in ("ae", "pca")}}
+
+
 PRIORS = ("nw-high-strain", "gneiss-domes")
 C = "tests/test_categorical.py::"
 
@@ -69,7 +85,10 @@ CELLS = {
     "R09": [_m("rocklea", "hole-group", R1, "ordinary-kriging"), _v("rocklea", "hole-group", R1, "sparse-primary")],
     "R10": [_m("rocklea", "hole-group", R1, m) for m in METHODS + LEARNED],
     "R11": [_m("rocklea", "spatial-margin", R1, m) for m in METHODS + LEARNED],
-    "R12": [_pending("SD-7", "the autoencoder review and the spectral index's calibration lineage")],
+    "R12": [_output("rocklea", "spectral-lineage.json", "the spectral export's lineage: products, embedded assays, "
+                                                        "registration"),
+            _output("rocklea", "spectral-metrics.json", "the iron-oxide index calibrated on training holes, beside OK"),
+            _output("rocklea", "geochemistry-metrics.json", "the autoencoder review and its PCA reference")],
     "A01": [_artifact("alberta", "ingest", "support QA: waterfall and issues")],
     "A02": [_artifact("alberta", "preprocess", "176 envelope positions on 22 collar projections"),
             _pending("SD-8", "the exported envelope view")],
@@ -139,6 +158,12 @@ def resolve(cell, metrics, out_dir) -> dict:
         return {**cell, "status": "computed", "metricsSha256": stable_hash(record),
                 "summary": {**{k: run["all"].get(k) for k in ("n", "brier", "logScore", "accuracy")},
                             "brierSkill": run["brierSkill"]}}
+    if kind == "output":
+        record = _read(Path(out_dir) / cell["family"] / cell["file"])
+        if not record or record.get("eligible") is False:
+            return {**cell, "status": "missing", "reason": f"no {cell['file']} for the family"}
+        return {**cell, "status": "computed", "outputSha256": stable_hash(record),
+                "summary": _output_summary(cell["file"], record)}
     if kind == "receipt":
         receipt = _read(Path(out_dir) / "simulation-checks.json")
         check = (receipt or {}).get(cell["check"])

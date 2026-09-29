@@ -491,6 +491,55 @@ def _check_exports(label, method, exports, folder) -> list[str]:
     return errors
 
 
+def check_review(folder: Path) -> list[str]:
+    """R12's outputs: the spectral lineage, the index check and the geochemical review, each against its inputs."""
+    load = lambda name: json.loads((folder / name).read_text(encoding="utf-8"))
+    errors = []
+    if (folder / "spectral-lineage.json").is_file():
+        lineage = load("spectral-lineage.json")
+        if lineage["inputProjectSha256"] != stable_hash(load("project.json")):
+            errors.append("spectral-lineage.json was built from another project")
+        if lineage["inputSpectralSourceSha256"] != stable_hash(load("spectral-source.json")):
+            errors.append("spectral-lineage.json was built from another spectral source")
+        described = {e["column"] for e in lineage["spectral"]} | set(lineage["undescribedColumns"])
+        if described != set(load("spectral-source.json")["columns"]["spectral"]):
+            errors.append("the lineage does not account for every spectral column")
+        if (folder / "spectral-models.json").is_file():
+            models = load("spectral-models.json")
+            if models["inputLineageSha256"] != stable_hash(lineage):
+                errors.append("spectral-models.json was fitted on another lineage")
+            confirmed = {h for h, v in lineage["registration"]["holes"].items() if v["status"] == "confirmed"}
+            if any(t["hole"] not in confirmed for t in models["test"]):
+                errors.append("the index check predicts a row from a hole whose registration is not confirmed")
+            if (folder / "spectral-metrics.json").is_file() and \
+                    load("spectral-metrics.json")["inputSpectralModelsSha256"] != stable_hash(models):
+                errors.append("spectral-metrics.json was scored from other spectral models")
+    if (folder / "geochemistry-models.json").is_file():
+        models = load("geochemistry-models.json")
+        if models.get("eligible"):
+            from learned.contracts import SEEDS
+
+            for c in models["configurations"]:
+                if sorted(f["seed"] for f in c["fits"]) != sorted(SEEDS):
+                    errors.append(f"geochemistry latent {c['latent']}: seeds differ from {list(SEEDS)}")
+                for f in c["fits"]:
+                    weights = folder / f["folder"] / "weights.pt"
+                    if not weights.is_file() or hashlib.sha256(weights.read_bytes()).hexdigest() != f["weightsSha256"]:
+                        errors.append(f"geochemistry latent {c['latent']} seed {f['seed']}: weights not matching")
+            if (folder / "geochemistry-predictions.json").is_file():
+                predictions = load("geochemistry-predictions.json")
+                if predictions["inputGeochemistryModelsSha256"] != stable_hash(models):
+                    errors.append("geochemistry-predictions.json came from other models")
+                for kind in predictions["alterations"]:
+                    if kind["kind"] == "unchanged" and any(r["altered"] for r in kind["records"]):
+                        errors.append("an unchanged record is marked altered")
+                errors += _check_exports("geochemistry", "autoencoder", predictions["exports"], folder)
+                if (folder / "geochemistry-metrics.json").is_file() and \
+                        load("geochemistry-metrics.json")["inputPredictionsSha256"] != stable_hash(predictions):
+                    errors.append("geochemistry-metrics.json was scored from other predictions")
+    return errors
+
+
 def check_learned(folder: Path) -> list[str]:
     """The learned chain of a family folder, as far as its outputs go (needs the .venv-gpu packages)."""
     path = folder / "learned-models.json"
@@ -530,6 +579,11 @@ def check_scenarios(matrix: dict, out_dir: Path) -> list[str]:
             if c["status"] == "computed" and c["kind"] in ("metric", "variant") \
                     and c.get("metricsSha256") != current.get(c["family"]):
                 errors.append(f"{s['id']}: a computed cell cites stale metrics")
+            if c["status"] == "computed" and c["kind"] == "output":
+                path = Path(out_dir) / c["family"] / c["file"]
+                now = stable_hash(json.loads(path.read_text(encoding="utf-8"))) if path.is_file() else None
+                if c.get("outputSha256") != now:
+                    errors.append(f"{s['id']}: a computed cell cites a stale {c['file']}")
             if c["status"] == "computed" and c["kind"] == "categorical":
                 path = Path(out_dir) / c["family"] / "categorical-metrics.json"
                 now = stable_hash(json.loads(path.read_text(encoding="utf-8"))) if path.is_file() else None
@@ -690,6 +744,7 @@ def check_family(folder: Path) -> list[str]:
                             errors += check_metrics(json.loads(metrics_path.read_text(encoding="utf-8")), predictions)
         errors += check_categorical(folder)
         errors += check_learned(folder)
+        errors += check_review(folder)
     return [f"{folder.name}: {e}" for e in errors]
 
 

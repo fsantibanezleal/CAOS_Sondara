@@ -78,6 +78,13 @@ def ingest(family: str, cache: Path, out: Path) -> dict:
         "issues": [{"code": i["code"], "severity": i["severity"], "rows": len(i["rowIds"])} for i in project["issues"]],
         "seconds": round(time.time() - t0, 2),
     }
+    if family == "rocklea":  # the hyperspectral export and the files of its lineage (unit SD-7b)
+        from source_adapters.rocklea_spectral import normalize as spectral
+
+        source = spectral(cache)
+        write_json(target / "spectral-source.json", source)
+        summary["spectralSourceSha256"] = stable_hash(source)
+        summary["spectralRows"] = len(source["rows"])
     write_json(target / "summary.json", summary, pretty=True)
     return summary
 
@@ -162,8 +169,27 @@ def features(family: str, out: Path) -> dict:
     result = family_features(family, project, pre, split, orientations=manifest.get("orientations"))
     result["inputDatasetSha256"] = stable_hash(split)
     write_json(target / "features.json", result)
-    return {"family": family, "eligible": result["eligible"], "schemes": len(result["schemes"]),
-            "seconds": round(time.time() - t0, 2)}
+    summary = {"family": family, "eligible": result["eligible"], "schemes": len(result["schemes"])}
+    lineage = _spectral_lineage(family, target, project)
+    if lineage is not None:
+        summary["spectralRegistration"] = lineage["registration"]["counts"]
+    return {**summary, "seconds": round(time.time() - t0, 2)}
+
+
+def _spectral_lineage(family: str, target: Path, project: dict):
+    """R12: the lineage of the supplied hyperspectral export, where the family has one and a reviewed mapping."""
+    from stages.spectral import lineage, load_mapping
+
+    mapping = load_mapping(family)
+    if mapping is None or not (target / "spectral-source.json").is_file():
+        return None
+    source = load_json(target / "spectral-source.json")
+    if load_json(target / "summary.json").get("spectralSourceSha256") != stable_hash(source):
+        raise ValueError(f"{family}: spectral-source.json does not match its ingest summary; run ingest again")
+    result = lineage(project, source, mapping)
+    result.update(inputProjectSha256=stable_hash(project), inputSpectralSourceSha256=stable_hash(source))
+    write_json(target / "spectral-lineage.json", result, pretty=True)
+    return result
 
 
 def _chain(family: str, out: Path):
@@ -205,6 +231,12 @@ def train(family: str, out: Path, lane: str = "all") -> dict:
         fitted = [p for s in result["schemes"] for p in s["populations"]]
         summary["learned"] = {"eligible": result["eligible"], "populations": len(fitted),
                               "fitted": sum(p.get("status") == "fitted" for p in fitted)}
+        from stages.geochemistry import train_geochemistry  # R12: the geochemical review
+
+        review = train_geochemistry(family, project, pre, split, target)
+        review["inputDatasetSha256"] = stable_hash(split)
+        write_json(target / "geochemistry-models.json", review, pretty=True)
+        summary["geochemistry"] = review["eligible"]
     if lane in ("all", "continuous"):
         features_record = load_json(target / "features.json")
         if features_record["inputDatasetSha256"] != stable_hash(split):
@@ -212,6 +244,17 @@ def train(family: str, out: Path, lane: str = "all") -> dict:
         result = train_family(family, project, pre, split, features_record)
         result["inputFeaturesSha256"] = stable_hash(features_record)
         write_json(target / "models.json", result)
+        if (target / "spectral-lineage.json").is_file():  # R12: the iron-oxide index, fitted on training holes
+            from stages.spectral import fit_index, load_mapping
+
+            lineage = load_json(target / "spectral-lineage.json")
+            if lineage["inputProjectSha256"] != stable_hash(project):
+                raise ValueError(f"{family}: spectral-lineage.json was built from another project; run features again")
+            spectral = fit_index(project, pre, split, load_json(target / "spectral-source.json"), lineage,
+                                 load_mapping(family))
+            spectral["inputDatasetSha256"] = stable_hash(split)
+            write_json(target / "spectral-models.json", spectral, pretty=True)
+            summary["spectral"] = {"train": spectral["train"]["rows"], "test": len(spectral["test"])}
         fitted = [p for s in result["schemes"] for p in s["populations"]]
         summary.update(eligible=result["eligible"], populations=len(fitted),
                        fitted=sum(p["status"] == "fitted" for p in fitted))
@@ -256,6 +299,15 @@ def infer(family: str, out: Path, lane: str = "all") -> dict:
         result["inputDatasetSha256"] = stable_hash(split)
         write_json(target / "learned-predictions.json", result)
         summary["learned"] = result["eligible"]
+        from stages.geochemistry import infer_geochemistry
+
+        review_models = load_json(target / "geochemistry-models.json")
+        if review_models["inputDatasetSha256"] != stable_hash(split):
+            raise ValueError(f"{family}: geochemistry-models.json was fitted on another dataset; run train again")
+        review = infer_geochemistry(review_models, project, pre, split, target)
+        review["inputGeochemistryModelsSha256"] = stable_hash(review_models)
+        write_json(target / "geochemistry-predictions.json", review)
+        summary["geochemistry"] = review["eligible"]
     return {**summary, "seconds": round(time.time() - t0, 1)}
 
 
@@ -280,8 +332,21 @@ def evaluate(family: str, out: Path, lane: str = "all") -> dict:
         elif lane in ("all", "learned"):
             raise ValueError(f"{family}: learned-predictions.json is missing; run train and infer --lane learned")
         result = evaluate_family(family, project, pre, split, predictions, models, learned=learned)
+        if (target / "spectral-models.json").is_file():  # R12: the index check beside OK on the same rows
+            from stages.spectral import score_index
+
+            spectral = load_json(target / "spectral-models.json")
+            if spectral["inputDatasetSha256"] != stable_hash(split):
+                raise ValueError(f"{family}: spectral-models.json was fitted on another dataset; run train again")
+            write_json(target / "spectral-metrics.json", score_index(spectral, project, pre, split, predictions),
+                       pretty=True)
         write_json(target / "metrics.json", result)
         summary["eligible"] = result["eligible"]
+    if lane in ("all", "learned") and (target / "geochemistry-predictions.json").is_file():
+        from stages.geochemistry import evaluate_geochemistry
+
+        review = load_json(target / "geochemistry-predictions.json")
+        write_json(target / "geochemistry-metrics.json", evaluate_geochemistry(review), pretty=True)
     if lane in ("all", "categorical"):
         models = load_json(target / "categorical-models.json")
         predictions = load_json(target / "categorical-predictions.json")
