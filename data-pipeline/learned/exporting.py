@@ -117,22 +117,27 @@ def audit_model(path: Path) -> dict:
                            "opset": [[o.domain, o.version] for o in model.opset_import]}
 
 
-def _run_torch(model, inputs, device, batch=4096):
+def _run_torch(model, inputs, device, batch=4096) -> list[np.ndarray]:
+    """Every output of ``model`` on ``inputs``, batched, as float64 arrays (a single output is a list of one)."""
     model = model.to(device).eval()
+    parts = []
     with torch.no_grad():
-        out = [model(*(torch.as_tensor(x[s:s + batch], dtype=torch.float32, device=device) for x in inputs)).cpu()
-               for s in range(0, len(inputs[0]), batch)]
+        for s in range(0, len(inputs[0]), batch):
+            out = model(*(torch.as_tensor(x[s:s + batch], dtype=torch.float32, device=device) for x in inputs))
+            parts.append([o.cpu() for o in (out if isinstance(out, tuple) else (out,))])
     model.cpu()
-    return torch.cat(out).numpy().astype(np.float64)
+    return [torch.cat([p[k] for p in parts]).numpy().astype(np.float64) for k in range(len(parts[0]))]
 
 
 def export_model(model: torch.nn.Module, inputs: tuple[np.ndarray, ...], names: list[str], destination: Path,
-                 metadata: dict, *, tolerance: float) -> dict:
+                 metadata: dict, *, tolerance: float, outputs: dict | None = None) -> dict:
     """Export ``model`` to ``destination/model.onnx`` and check it on every row of ``inputs`` (the held-out inputs).
 
-    ONNX Runtime on the CPU and, when present, PyTorch on CUDA must agree with PyTorch on the CPU within
-    ``tolerance`` (native units); the record and a fixture of the first rows go to ``parity.json``.
+    ``outputs`` names each output with its unit (default: one output, ``value``, in native units). ONNX Runtime on
+    the CPU and, when present, PyTorch on CUDA must agree with PyTorch on the CPU within ``tolerance`` on every output;
+    the record and a fixture of the first rows go to ``parity.json``.
     """
+    outputs = outputs or {"value": "native"}
     destination.mkdir(parents=True, exist_ok=True)
     path = destination / "model.onnx"
     inputs = tuple(np.asarray(x, dtype=np.float32) for x in inputs)
@@ -142,34 +147,39 @@ def export_model(model: torch.nn.Module, inputs: tuple[np.ndarray, ...], names: 
     batch = torch.export.Dim("batch")
     log = io.StringIO()
     with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
-        torch.onnx.export(model, sample, path, input_names=names, output_names=["value"], opset_version=OPSET,
+        torch.onnx.export(model, sample, path, input_names=names, output_names=list(outputs), opset_version=OPSET,
                           dynamo=True, external_data=False, dynamic_shapes=tuple({0: batch} for _ in names))
     onnx.save(strip(onnx.load(path)), path)
     audit = audit_model(path)
     expected = _run_torch(model, inputs, "cpu")
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
     started = time.perf_counter()
-    actual = np.concatenate([session.run(None, dict(zip(names, (x[s:s + 4096] for x in inputs), strict=True)))[0]
-                             for s in range(0, len(inputs[0]), 4096)]).astype(np.float64)
+    runs = [session.run(None, dict(zip(names, (x[s:s + 4096] for x in inputs), strict=True)))
+            for s in range(0, len(inputs[0]), 4096)]
+    actual = [np.concatenate([r[k] for r in runs]).astype(np.float64) for k in range(len(outputs))]
     seconds = time.perf_counter() - started
-    onnx_error = float(np.max(np.abs(actual - expected))) if len(expected) else 0.0
-    cuda_error = None
-    if torch.cuda.is_available():
-        cuda_error = float(np.max(np.abs(_run_torch(model, inputs, "cuda") - expected))) if len(expected) else 0.0
-    parity = {"schema": "sondara.onnx-parity/v1", "rows": len(expected), "tolerance": tolerance,
-              "unit": "native", "onnxCpuMaxAbsolute": onnx_error, "torchCudaMaxAbsolute": cuda_error,
+
+    def worst(got):
+        return max((float(np.max(np.abs(g - e))) for g, e in zip(got, expected, strict=True) if e.size), default=0.0)
+
+    onnx_error = worst(actual)
+    cuda_error = worst(_run_torch(model, inputs, "cuda")) if torch.cuda.is_available() else None
+    parity = {"schema": "sondara.onnx-parity/v1", "rows": len(expected[0]), "tolerance": tolerance,
+              "unit": ", ".join(f"{n}: {u}" for n, u in outputs.items()) if len(outputs) > 1 else outputs["value"],
+              "onnxCpuMaxAbsolute": onnx_error, "torchCudaMaxAbsolute": cuda_error,
               "passed": onnx_error <= tolerance and (cuda_error is None or cuda_error <= tolerance),
               "onnxSeconds": round(seconds, 4), "onnxRuntime": ort.__version__, "torch": torch.__version__,
               "fixture": {"inputs": {n: {"shape": [min(FIXTURE_ROWS, len(x))] + list(x.shape[1:]),
                                          "data": x[:FIXTURE_ROWS].reshape(-1).tolist()}
                                      for n, x in zip(names, inputs, strict=True)},
-                          "outputs": {"value": expected[:FIXTURE_ROWS].tolist()}}}
+                          "outputs": {n: e[:FIXTURE_ROWS].tolist() for n, e in zip(outputs, expected, strict=True)}}}
     save_json(destination / "parity.json", parity)
     if not parity["passed"]:
         raise ArithmeticError(f"{destination}: parity outside {tolerance:g} (ONNX {onnx_error:.3g}, CUDA {cuda_error})")
     manifest = metadata | {"schema": "sondara.learned-model/v1", "model": audit, "inputs": {
         n: {"shape": ["batch"] + list(x.shape[1:]), "dtype": "float32"} for n, x in zip(names, inputs, strict=True)},
-        "outputs": {"value": {"shape": ["batch"], "dtype": "float32", "unit": "native"}},
+        "outputs": {n: {"shape": ["batch"] + list(e.shape[1:]), "dtype": "float32", "unit": u}
+                    for (n, u), e in zip(outputs.items(), expected, strict=True)},
         "parity": digest(destination / "parity.json") | {k: parity[k] for k in (
             "rows", "tolerance", "onnxCpuMaxAbsolute", "torchCudaMaxAbsolute")},
         "exporter": {"torch": torch.__version__, "onnx": onnx.__version__, "opset": OPSET, "path": "torch.export"},

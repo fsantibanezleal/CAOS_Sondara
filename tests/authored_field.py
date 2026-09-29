@@ -27,7 +27,12 @@ def lithology_log(x_rel, y_rel, depth):
     return [c for c in cuts if c[1] > c[0]]
 
 
-def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10, lithology=False):
+#: The compositional analytes of ``write(..., geochemistry=True)``: iron-rich rock diluted by silica, with alumina
+#: and loss on ignition following them, so a record that breaks the pattern is atypical.
+GEOCHEMISTRY = ("Fe", "SiO2", "Al2O3", "LOI")
+
+
+def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10, lithology=False, geochemistry=False):
     folder.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     collars, assays = [], []
@@ -40,14 +45,22 @@ def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10, lithology=
             smooth = 100 + 40 * math.sin((x - 500000) / 90) + 30 * math.cos((y - 7400000) / 110) - 1.5 * depth
             cu = smooth + rng.normal(0, 8)
             zn = 0.6 * cu + rng.normal(0, 10) + 20
-            assays.append((hole, f"{hole}-{k}", 2.0 * k, 2.0 * k + 2.0, f"{cu:.3f}", f"{zn:.3f}"))
+            row = (hole, f"{hole}-{k}", 2.0 * k, 2.0 * k + 2.0, f"{cu:.3f}", f"{zn:.3f}")
+            if geochemistry:
+                fe = 35 + 12 * math.sin((x - 500000) / 120) - 0.4 * depth + rng.normal(0, 2)
+                sio2 = 70 - 1.2 * fe + rng.normal(0, 2)
+                al2o3 = 4 + 0.05 * sio2 + rng.normal(0, 0.5)
+                loi = 3 + 0.12 * fe + rng.normal(0, 0.4)
+                row += tuple(f"{v:.3f}" for v in (fe, sio2, al2o3, loi))
+            assays.append(row)
     with (folder / "collars.csv").open("w", encoding="utf-8", newline="") as stream:
         w = csv.writer(stream, lineterminator="\n")
         w.writerow(["HoleID", "East", "North", "RL", "Depth", "Azimuth", "Dip"])
         w.writerows(collars)
     with (folder / "assays.csv").open("w", encoding="utf-8", newline="") as stream:
         w = csv.writer(stream, lineterminator="\n")
-        w.writerow(["HoleID", "SampleID", "From", "To", "Cu_ppm", "Zn_ppm"])
+        w.writerow(["HoleID", "SampleID", "From", "To", "Cu_ppm", "Zn_ppm"]
+                   + ([f"{a}_pct" for a in GEOCHEMISTRY] if geochemistry else []))
         w.writerows(assays)
     manifest = {
         "schema": "drillhole.import/v1", "project": {"id": "authored-field", "name": "Authored field"},
@@ -62,6 +75,9 @@ def write(folder, *, seed=20260926, side=5, spacing=50.0, samples=10, lithology=
                           "Zn_ppm": {"analyte": "Zn", "unit": "ppm", "method": "ICP"}}}],
         "compositing": {"lengths": [4.0], "minCoverage": 1.0},
     }
+    if geochemistry:
+        manifest["files"][1]["analytes"].update({f"{a}_pct": {"analyte": a, "unit": "wt%", "method": "XRF"}
+                                                 for a in GEOCHEMISTRY})
     if lithology:
         rows = []
         for hole, x, y, *_ in collars:
@@ -93,13 +109,13 @@ def lithology_mapping(project_id):
 
 
 def chain(tmp_path, stages=("preprocess", "dataset", "features", "train", "infer"), lithology=False,
-          lane="continuous"):
+          lane="continuous", geochemistry=False):
     """Import the authored field and run the stages (train, infer and evaluate on ``lane``); returns the output folder
     and the project id."""
     import run
     from source_adapters.manifest_import import run_import
 
-    manifest = write(tmp_path / "source", lithology=lithology)
+    manifest = write(tmp_path / "source", lithology=lithology, geochemistry=geochemistry)
     out = tmp_path / "derived"
     identifier = run_import(manifest, out)["project"]
     for stage in stages:
