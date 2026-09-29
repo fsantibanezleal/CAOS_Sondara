@@ -36,8 +36,8 @@ def _truths(folder: Path, ids: set[str]) -> dict:
 
 
 def figure(models, metrics, review, truths, p):
-    width, height = 820, 420
-    x0, y0, w, h = 70, 70, 300, 280
+    width, height = 820, 450
+    x0, y0, w, h = 70, 92, 300, 280
     xs = [t["index"] for t in models["test"]] + models["fit"]["x"]
     xmax = max(xs) * 1.05
     ymax = 70.0
@@ -45,9 +45,11 @@ def figure(models, metrics, review, truths, p):
     Y = lambda v: y0 + h * (1 - v / ymax)
     parts = [('  <text class="t" x="24" y="30">Rocklea R12: what the iron-oxide index predicts, and what the '
               'autoencoder review notices</text>'),
-             (f'  <text class="m" x="24" y="50">Left: test rows (confirmed holes); the line is the monotone fit on '
-              f'the training holes. RMSE {metrics["index"]["rmse"]:.2f} against OK {metrics["ordinaryKriging"]["rmse"]:.2f} '
-              f'on the same {metrics["rows"]} rows. Right: share flagged at the review threshold.</text>')]
+             (f'  <text class="m" x="24" y="50">Left: test rows of confirmed holes, and the monotone fit on the '
+              f'training holes; RMSE {metrics["index"]["rmse"]:.2f} wt% Fe against OK {metrics["ordinaryKriging"]["rmse"]:.2f} '
+              f'on the same {metrics["rows"]} rows.</text>'),
+             ('  <text class="m" x="24" y="66">Right: the share of each constructed alteration flagged at the review '
+              'threshold, and of the unchanged records.</text>')]
     parts.append(f'  <rect x="{x0}" y="{y0}" width="{w}" height="{h}" fill="none" stroke="{p["grid"]}"/>')
     for t in models["test"]:
         if t["id"] in truths:
@@ -69,18 +71,18 @@ def figure(models, metrics, review, truths, p):
     step = h / (len(kinds) + 1)
     for i, k in enumerate(kinds):
         y = top + i * step
-        parts.append(f'  <text class="m" x="{bx - 8}" y="{y + 12:.1f}" text-anchor="end">{KIND_LABELS[k]}</text>')
+        parts.append(f'  <text class="m" x="{bx - 8}" y="{y + 16:.1f}" text-anchor="end">{KIND_LABELS[k]}</text>')
         for j, (m, colour) in enumerate((("ae", p["series"][0]), ("pca", p["series"][2]))):
             value = review["alterations"][k][m]["recall"] or 0.0
-            parts.append(f'  <rect x="{bx}" y="{y + j * 9:.1f}" width="{bw * value:.1f}" height="8" fill="{colour}"/>')
-            parts.append(f'  <text class="m" x="{bx + bw * value + 4:.1f}" y="{y + j * 9 + 8:.1f}">{value:.2f}</text>')
+            parts.append(f'  <rect x="{bx}" y="{y + j * 14:.1f}" width="{bw * value:.1f}" height="11" fill="{colour}"/>')
+            parts.append(f'  <text class="m" x="{bx + bw * value + 4:.1f}" y="{y + j * 14 + 10:.1f}">{value:.2f}</text>')
     flags = review["alterations"]["unchanged"]
     y = top + len(kinds) * step
-    parts.append(f'  <text class="m" x="{bx - 8}" y="{y + 12:.1f}" text-anchor="end">unchanged (false flags)</text>')
+    parts.append(f'  <text class="m" x="{bx - 8}" y="{y + 16:.1f}" text-anchor="end">unchanged (false flags)</text>')
     for j, (m, colour) in enumerate((("ae", p["series"][0]), ("pca", p["series"][2]))):
         value = flags[m]["falseFlags"]
-        parts.append(f'  <rect x="{bx}" y="{y + j * 9:.1f}" width="{bw * value:.1f}" height="8" fill="{colour}"/>')
-        parts.append(f'  <text class="m" x="{bx + bw * value + 4:.1f}" y="{y + j * 9 + 8:.1f}">{value:.2f}</text>')
+        parts.append(f'  <rect x="{bx}" y="{y + j * 14:.1f}" width="{bw * value:.1f}" height="11" fill="{colour}"/>')
+        parts.append(f'  <text class="m" x="{bx + bw * value + 4:.1f}" y="{y + j * 14 + 10:.1f}">{value:.2f}</text>')
     parts.append(f'  <text class="m" x="{bx}" y="{y0 + h + 34}" style="fill:{p["series"][0]}">autoencoder</text>')
     parts.append(f'  <text class="m" x="{bx + 90}" y="{y0 + h + 34}" style="fill:{p["series"][2]}">PCA</text>')
     desc = (f"Index calibration RMSE {metrics['index']['rmse']:.2f} wt% Fe against OK {metrics['ordinaryKriging']['rmse']:.2f} "
