@@ -248,14 +248,23 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
         json.dumps({"eligible": True, "mapping": {"mappingId": "m", "counts": {"0": 1}}}), encoding="utf-8")
     (tmp_path / "simulation-checks.json").write_text(json.dumps({"s10": {"passed": True}, "s11": {"passed": True}}),
                                                      encoding="utf-8")
+    # R12's stage outputs: the spectral lineage, the index check and the geochemical review.
+    outputs = {"spectral-lineage.json": {"registration": {"counts": {"confirmed": 3}},
+                                         "embedded": [{"column": "Fe %", "share": 0.96}]},
+               "spectral-metrics.json": {"rows": 5, "index": {"rmse": 12.0}, "ordinaryKriging": {"rmse": 13.9}},
+               "geochemistry-metrics.json": {"eligible": True, "thresholds": {"ae": 0.1, "pca": 0.2},
+                                             "alterations": {"unchanged": {"ae": {"falseFlags": 0.05},
+                                                                           "pca": {"falseFlags": 0.04}}}}}
+    for name, record in outputs.items():
+        (tmp_path / "rocklea" / name).write_text(json.dumps(record), encoding="utf-8")
     matrix = scenario_matrix(tmp_path)
     assert matrix["counts"]["missing"] == 0 and contract.check_scenarios(matrix, tmp_path) == []
     assert sum(matrix["counts"].values()) == sum(len(c) for c in CELLS.values())
     states = {s["id"]: s["state"] for s in matrix["scenarios"]}
-    assert states["R01"] == "complete" and states["R10"] == "complete" and states["R12"] == "pending"
+    assert states["R01"] == "complete" and states["R10"] == "complete" and states["R12"] == "complete"
     assert states["A07"] == "complete" and states["S11"] == "complete"
     assert matrix["pendingByOwner"] == {o: sum(c.get("owner") == o for cs in CELLS.values() for c in cs)
-                                        for o in ("SD-7", "SD-8")}
+                                        for o in ("SD-8",)}
     failed = scenario_matrix  # a failed receipt is missing, never computed
     (tmp_path / "simulation-checks.json").write_text(
         json.dumps({"s10": {"passed": True}, "s11": {"passed": False, "reason": "no CUDA device"}}), encoding="utf-8")
@@ -264,6 +273,9 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
     categorical["schemes"][0]["runs"][0]["all"]["brier"] = 0.5
     (tmp_path / "alberta" / "categorical-metrics.json").write_text(json.dumps(categorical), encoding="utf-8")
     assert any("stale categorical" in e for e in contract.check_scenarios(matrix, tmp_path))
+    (tmp_path / "rocklea" / "spectral-metrics.json").write_text(
+        json.dumps({**outputs["spectral-metrics.json"], "rows": 6}), encoding="utf-8")
+    assert any("stale spectral-metrics.json" in e for e in contract.check_scenarios(matrix, tmp_path))
     stale = metrics("rocklea")
     stale["schemes"][0]["populations"][0]["methods"]["ordinary-kriging"]["common"]["rmse"] = 9.9
     (tmp_path / "rocklea" / "metrics.json").write_text(json.dumps(stale), encoding="utf-8")

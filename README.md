@@ -9,10 +9,11 @@ by path.
 
 ## Current release
 
-Version 0.11.000. The build follows ten units (SD-1 to SD-10); the first eight stages of the offline pipeline are
-complete for the classical methods, for categorical simulation (SNESIM and Direct Sampling on the Alberta logs) and for
-the learned methods (DeepKriging and KCN, trained on the GPU and exported to ONNX with their parity), with every method
-evaluated on held-out holes and a scenario matrix that accounts for every cell, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
+Version 0.12.000. The build follows ten units (SD-1 to SD-10); the first eight stages of the offline pipeline are
+complete for the classical methods, for categorical simulation (SNESIM and Direct Sampling on the Alberta logs), for
+the learned methods (DeepKriging and KCN, trained on the GPU and exported to ONNX with their parity) and for the
+Rocklea review of R12 (the supplied hyperspectral index's lineage and calibration, and a geochemical autoencoder with
+its PCA reference), with every method evaluated on held-out holes and a scenario matrix that accounts for every cell, your own files import through a manifest ([guide](docs/guides/02_bring-your-own-data.md)), and every stage writes the canonical contract `drillhole.project/v2` defined by
 [`schemas/project.schema.json`](schemas/project.schema.json):
 
 | Stage | What it does | Families |

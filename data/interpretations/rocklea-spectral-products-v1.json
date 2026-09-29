@@ -1,0 +1,47 @@
+{
+  "schema": "drillhole.spectral-products/v1",
+  "id": "rocklea-spectral-products-v1",
+  "family": "rocklea",
+  "status": "reviewed 2026-09-28 against the collection's product descriptions workbook",
+  "evidence": [
+    "GeoscienceProductDescriptions_ProximalHyperspectral.xlsx, sheet 'scripts 08042011CSIRO' (CSIRO collection 44783, file 56857411)",
+    "RC_data.ini, the TSG project of the export: the parameter names (file 56857403)",
+    "Management repository, wip/drillhole-workbench/learned-methods-2026-09-28.md, section 3"
+  ],
+  "spectral": [
+    {"column": "Fe ox ai", "product": "Ferric oxide abundance (Ferric_oxide_abundance.txt)", "unit": "relative absorption depth", "kind": "abundance"},
+    {"column": "hem/goe", "product": "Hematite-goethite distribution (Hematite-goethite_distr.txt)", "unit": "nm (absorption wavelength)", "kind": "composition"},
+    {"column": "kaolin abundance", "product": "Kaolin abundance index", "unit": "relative absorption depth", "kind": "abundance"},
+    {"column": "kaolin composition", "product": "Kaolin composition index", "unit": "band ratio", "kind": "composition"},
+    {"column": "wmAlsmai", "product": "White mica and Al-smectite abundance (wmAlsmai.txt)", "unit": "relative absorption depth", "kind": "abundance"},
+    {"column": "wmAlsmci", "product": "White mica and Al-smectite composition (wmAlsmci.txt)", "unit": "nm (absorption wavelength)", "kind": "composition"},
+    {"column": "carbai3pfit", "product": "Carbonates abundance (carbai3pfit.txt)", "unit": "relative absorption depth", "kind": "abundance"},
+    {"column": "carbci3pfit", "product": "Carbonate composition (carbci3pfit.txt)", "unit": "nm (absorption wavelength)", "kind": "composition"}
+  ],
+  "embeddedAssays": {
+    "Fe %": {"analyte": "Fe", "comparison": "whole percent, rounded half to even"},
+    "Al2O3": {"analyte": "Al2O3", "comparison": "exact"},
+    "SiO2 %": {"analyte": "SiO2", "comparison": "exact"},
+    "K2O %": {"analyte": "K2O", "comparison": "exact"},
+    "CaO %": {"analyte": "CaO", "comparison": "exact"},
+    "MgO %": {"analyte": "MgO", "comparison": "exact"},
+    "TiO2 %": {"analyte": "TiO2", "comparison": "exact"},
+    "P %": {"analyte": "P", "comparison": "exact"},
+    "S %": {"analyte": "S", "comparison": "exact"},
+    "Mn %": {"analyte": "Mn", "comparison": "exact"},
+    "LOI": {"analyte": "LOI", "comparison": "exact"}
+  },
+  "registration": {
+    "compare": ["Al2O3", "SiO2", "CaO", "MgO", "TiO2", "LOI"],
+    "offsets": [-2, -1, 1, 2],
+    "rule": "a hole is confirmed when every export row that carries the compared assays equals the workbook at the same hole and depth; a spectral row is paired with an assay interval only in a confirmed hole"
+  },
+  "calibration": {
+    "index": "Fe ox ai",
+    "target": "Fe",
+    "statedAccuracy": [
+      {"statement": "Rocklea case study: RMSE = 9.7%", "source": "GeoscienceProductDescriptions_ProximalHyperspectral.xlsx, Ferric oxide abundance row"},
+      {"statement": "Validation of Fe-(oxyhydr-)oxide abundance script (RMSE = 11.3 wt% Fe)", "source": "Answers_CIDexercises.docx, Exercise 3"}
+    ]
+  }
+}

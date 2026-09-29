@@ -42,6 +42,34 @@
    "sha256": "d4a65dc093454ed04890a71e64169cad6ed863a7d8a3113124ae7c0881b66ef5"
   },
   {
+   "file": "GeoscienceProductDescriptions_ProximalHyperspectral.xlsx",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857411",
+   "bytes": 15560,
+   "sha256": "4c0fec13df07b38cf9441a7eb544fe7ebcbfd677aae766a504e0ee078aff0283"
+  },
+  {
+   "file": "RC_data.ini",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857403",
+   "bytes": 79884,
+   "sha256": "ec180d15d085d474b9c83df340e9aa0112dbd2e89958ebc80d9829a514b69918"
+  },
+  {
+   "file": "RC_data8_Fe.pls",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857421",
+   "bytes": 41640,
+   "sha256": "86cfeb6eea9875847408e58a2393dd6de3dc8c132394b6beed1596b9e585317d"
+  },
+  {
+   "file": "Answers_CIDexercises.docx",
+   "family": "rocklea",
+   "url": "https://data.csiro.au/dap/ws/v2/collections/44783/data/56857431",
+   "bytes": 1639454,
+   "sha256": "5f300e18975c457280d0454aea96d9d68d1a0628422fb9e6c99eae4389d610f9"
+  },
+  {
    "file": "DIG_2024_0022_0.zip",
    "family": "alberta",
    "url": "https://static.ags.aer.ca/files/document/DIG/DIG_2024_0022_0.zip",
