@@ -45,9 +45,11 @@ What the three stages do, and what they write under `build/derived/<family>/`:
 checkpoint (every 20 epochs), and one whose recipe differs is refused: remove its folder to refit. Delete
 `build/derived/<family>/learned/` to start over.
 
-**Time.** On the RTX 4070 the full Rocklea search (six populations, 69 fits each) takes about the time recorded in
-`learned-models.json` (`fitSeconds` per fit); Alberta takes a few minutes. Only one heavy PyTorch job should run at a
-time: two jobs on one device slow each other down more than they gain.
+**Time.** On the RTX 4070 Laptop GPU (2026-09-28), Rocklea's six populations (414 fits, 69 per population: the two
+searches and the controls, three seeds each) trained in 2,475 s, and `infer` (the ensembles and 36 exports with their
+parity) took 81 s; Alberta took 40 s and 18 s. Each fit records its own `fitSeconds` in `learned-models.json`. Run
+one heavy PyTorch job at a time: two jobs on one device slow each other down more than they gain. The stages are
+checkpointed, so a run that stops (a closed session, a restart) continues from the finished fits when started again.
 
 ## Check the outputs
 

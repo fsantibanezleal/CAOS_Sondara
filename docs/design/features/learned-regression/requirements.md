@@ -1,7 +1,5 @@
 # Learned regression (SD-7a): requirements
 
-Status: planned
-
 Each requirement names the test that verifies it (`tests/test_learned.py`, run in `.venv-gpu`; the CUDA gate skips
 without a device). The tests train on the authored field of `tests/authored_field.py` with a reduced epoch budget; the
 field run is recorded in `learned-models.json` and checked by `scripts/check_artifacts.py`.

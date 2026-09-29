@@ -171,8 +171,10 @@ coverage and statuses, the share outside the training range, the scores on their
 common targets (the targets every classical continuous method predicted, unchanged, with the count a learned method
 missed), and the paired comparison with ordinary kriging (95 % hole-block bootstrap). Learned-only fields: each
 seed's scores, the spread summary, the residual band (radius from the calibration rows, coverage on the test rows),
-the two controls, the selected configuration, the training device and time. The scenario matrix marks R10 and R11's
-DeepKriging and KCN cells computed from those entries.
+the two controls, the selected configuration, the training device and time. Each population also gets a constant
+reference, `trainingMeanReference`: every test target predicted by the training mean, scored on the same targets and
+paired with OK, because a model that stops near its initial weights predicts close to that constant. The scenario
+matrix marks R10 and R11's DeepKriging and KCN cells computed from those entries.
 
 ## 7. What it does not claim
 

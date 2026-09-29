@@ -15,3 +15,6 @@
   records every population's selection, fits, exports and parity; `metrics.json` scores the learned methods beside
   the classical ones; the scenario matrix has no pending SD-7 cell for R10 and R11. The `Status: planned` line is then
   removed from `requirements.md`.
+- **Verdict (2026-09-28):** converged. Every gate exists and passes in `.venv-gpu` on the RTX 4070; the field run
+  trained 414 Rocklea and 138 Alberta fits and exported 48 models, all within the parity tolerance
+  (`scripts/check_artifacts.py` re-audits them); R10 and R11 are complete in the scenario matrix.

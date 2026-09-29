@@ -102,8 +102,11 @@ two schemes disagree on the family and the ranges. Every method predicts every t
 With three test holes per scheme (28 and 26 envelope centres), no method separates from OK (RMSE 5.47 ppm Cu inside
 the drilled area, 11.15 at the margin) beyond wide hole-block intervals, and Zn does not improve Cu. The kriging
 variances are about five times too large (variance scale 0.19, from two calibration holes), MIK has no skill, and
-the Gaussian-space model's sill (1.87) makes the SGS realizations twice as variable as the truths. These are weak
-evidence, as the fits are. Tables and caveats: [model evaluation](../architecture/06_model-evaluation.md).
+the Gaussian-space model's sill (1.87) makes the SGS realizations twice as variable as the truths. DeepKriging and
+KCN (0.11.000) score below OK inside the drilled area (RMSE 4.81 and 4.80), but their shuffled-label controls score
+the same and the training mean alone scores 4.66: with 13 training holes, early stopping keeps models close to the
+mean, and no method shows spatial skill over a constant on these test values. These are weak evidence, as the fits
+are. Tables and caveats: [model evaluation](../architecture/06_model-evaluation.md).
 
 ## The reviewed lithology mapping (A04)
 
