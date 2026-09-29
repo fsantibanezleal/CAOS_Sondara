@@ -366,12 +366,147 @@ def check_metrics(metrics: dict, predictions: dict) -> list[str]:
                 continue
             if not source["methods"]:
                 continue
-            if set(p["methods"]) != set(METHODS):
-                errors.append(f"{label}: methods {sorted(set(METHODS) - set(p['methods']))} are not scored")
+            expected = set(METHODS)
+            if p.get("learned", {}).get("status") in ("fitted", "constant"):
+                expected |= set(LEARNED_METHODS)
+            if expected - set(p["methods"]):
+                errors.append(f"{label}: methods {sorted(expected - set(p['methods']))} are not scored")
+            if set(p["methods"]) - expected:
+                errors.append(f"{label}: methods {sorted(set(p['methods']) - expected)} are scored without their "
+                              "predictions")
             for method, entry in p["methods"].items():
                 common = entry.get("common")
-                if common is not None and common.get("n") != p["commonTargets"]:
-                    errors.append(f"{label}/{method}: common scores cover {common.get('n')} of {p['commonTargets']}")
+                covered = None if common is None else common.get("n", 0) + common.get("classicalCommonMissed", 0)
+                if common is not None and covered != p["commonTargets"]:
+                    errors.append(f"{label}/{method}: common scores cover {covered} of {p['commonTargets']}")
+    return errors
+
+
+LEARNED_METHODS = ("deepkriging", "kcn")
+
+
+def check_learned_models(models: dict, folder: Path, dataset: dict, features: dict) -> list[str]:
+    """The learned fits: inputs, every configuration of the frozen search with its three seeds and weights, the
+    selection rule, the controls."""
+    from learned.contracts import SEEDS
+
+    if models.get("inputDatasetSha256") != stable_hash(dataset):
+        return ["learned-models.json was fitted on another dataset"]
+    if models.get("inputFeaturesSha256") != stable_hash(features):
+        return ["learned-models.json was fitted on other features"]
+    errors = []
+
+    def fits_ok(label, fits):
+        if sorted(f["seed"] for f in fits) != sorted(SEEDS):
+            errors.append(f"{label}: seeds {[f['seed'] for f in fits]}, expected {list(SEEDS)}")
+        for f in fits:
+            weights = folder / f["folder"] / "weights.pt"
+            if not weights.is_file() or hashlib.sha256(weights.read_bytes()).hexdigest() != f["weightsSha256"]:
+                errors.append(f"{label}/seed-{f['seed']}: weights missing or not matching their record")
+
+    for scheme in models.get("schemes", []):
+        for p in scheme["populations"]:
+            if p.get("status") != "fitted":
+                continue
+            for method in LEARNED_METHODS:
+                label = f"{scheme['scheme']}/{p['population']}/{method}"
+                entry = p["methods"][method]
+                search = [c["id"] for c in models["search"][method]]
+                if [e["config"]["id"] for e in entry["configurations"]] != search:
+                    errors.append(f"{label}: the configurations differ from the frozen search")
+                for e in entry["configurations"]:
+                    fits_ok(f"{label}/{e['config']['id']}", e["fits"])
+                best = min(entry["configurations"], key=lambda e: (
+                    sum(f["bestValidationObjective"] for f in e["fits"]) / len(e["fits"]), e["fits"][0]["parameters"],
+                    search.index(e["config"]["id"])))
+                if best["config"]["id"] != entry["selected"]:
+                    errors.append(f"{label}: selected {entry['selected']}, the rule gives {best['config']['id']}")
+                controls = {"shuffled-labels"} | ({"coordinate-only"} if method == "deepkriging" else set())
+                if set(entry["controls"]) != controls:
+                    errors.append(f"{label}: controls {sorted(entry['controls'])}, expected {sorted(controls)}")
+                for name, fits in entry["controls"].items():
+                    fits_ok(f"{label}/{name}", fits)
+    return errors
+
+
+def check_learned_predictions(learned: dict, models: dict, predictions: dict, folder: Path) -> list[str]:
+    """The learned predictions: inputs, the classical targets, every row predicted or given a reason, the ensemble
+    mean, and every export on disk, audited, with its parity inside the tolerance."""
+    if learned.get("inputLearnedModelsSha256") != stable_hash(models):
+        return ["learned-predictions.json came from other learned models"]
+    errors = []
+    classical = {(s["scheme"], p["population"]): p for s in predictions.get("schemes", []) for p in s["populations"]}
+    for scheme in learned.get("schemes", []):
+        for p in scheme["populations"]:
+            label = f"{scheme['scheme']}/{p['population']}"
+            source = classical.get((scheme["scheme"], p["population"]))
+            if source is None or source["targets"] != p["targets"] or \
+                    source["calibrationTargets"] != p["calibrationTargets"]:
+                errors.append(f"{label}: learned targets differ from the classical targets")
+                continue
+            if p["status"] not in ("fitted", "constant"):
+                continue
+            for method in LEARNED_METHODS:
+                record = p["methods"].get(method)
+                if record is None:
+                    errors.append(f"{label}/{method}: no predictions")
+                    continue
+                rows = record["rows"] + record["calibrationRows"]
+                if [r["id"] for r in rows] != p["targets"] + p["calibrationTargets"]:
+                    errors.append(f"{label}/{method}: rows do not follow the targets")
+                for r in rows:
+                    if r["status"] == "estimated":
+                        if not _finite(r["mean"]) or r["variance"] is not None:
+                            errors.append(f"{label}/{method}/{r['id']}: an estimate needs a finite mean, no variance")
+                        elif r.get("seeds") and abs(sum(r["seeds"]) / len(r["seeds"]) - r["mean"]) > 1e-9 * max(
+                                1.0, abs(r["mean"])):
+                            errors.append(f"{label}/{method}/{r['id']}: the mean is not the seed mean")
+                    elif r["status"] != "uninformed" or not r.get("reason"):
+                        errors.append(f"{label}/{method}/{r['id']}: status {r['status']} without a reason")
+                if p["status"] == "fitted":
+                    errors += _check_exports(label, method, record.get("exports", []), folder)
+    return errors
+
+
+def _check_exports(label, method, exports, folder) -> list[str]:
+    from learned.contracts import SEEDS
+    from learned.exporting import audit_model
+
+    errors = []
+    if sorted(e["seed"] for e in exports) != sorted(SEEDS):
+        return [f"{label}/{method}: exports for seeds {[e['seed'] for e in exports]}, expected {list(SEEDS)}"]
+    for e in exports:
+        path = folder / e["folder"] / "model.onnx"
+        try:
+            audit = audit_model(path)
+        except (OSError, ValueError) as error:
+            errors.append(f"{label}/{method}/seed-{e['seed']}: {error}")
+            continue
+        if audit["sha256"] != e["model"]["sha256"]:
+            errors.append(f"{label}/{method}/seed-{e['seed']}: the model file does not match its record")
+        parity = e["parity"]
+        worst = max(parity["onnxCpuMaxAbsolute"], parity["torchCudaMaxAbsolute"] or 0.0)
+        if worst > parity["tolerance"]:
+            errors.append(f"{label}/{method}/seed-{e['seed']}: parity {worst:.3g} over {parity['tolerance']:.3g}")
+    return errors
+
+
+def check_learned(folder: Path) -> list[str]:
+    """The learned chain of a family folder, as far as its outputs go (needs the .venv-gpu packages)."""
+    path = folder / "learned-models.json"
+    if not path.is_file():
+        return []
+    models = json.loads(path.read_text(encoding="utf-8"))
+    if not models.get("eligible"):
+        return []
+    try:
+        import learned.exporting  # noqa: F401
+    except ImportError as error:
+        return [f"learned outputs exist but cannot be checked without PyTorch and onnx ({error}); use .venv-gpu"]
+    load = lambda name: json.loads((folder / name).read_text(encoding="utf-8"))
+    errors = check_learned_models(models, folder, load("dataset.json"), load("features.json"))
+    if (folder / "learned-predictions.json").is_file():
+        errors += check_learned_predictions(load("learned-predictions.json"), models, load("predictions.json"), folder)
     return errors
 
 
@@ -554,6 +689,7 @@ def check_family(folder: Path) -> list[str]:
                         if metrics_path.is_file():
                             errors += check_metrics(json.loads(metrics_path.read_text(encoding="utf-8")), predictions)
         errors += check_categorical(folder)
+        errors += check_learned(folder)
     return [f"{folder.name}: {e}" for e in errors]
 
 

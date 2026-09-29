@@ -544,6 +544,9 @@ def test_evaluate_scores_the_learned_methods_beside_ordinary_kriging(lane):
     for with_learned, without in zip(data["metrics"]["schemes"], classical_only["schemes"], strict=True):
         for a, b in zip(with_learned["populations"], without["populations"], strict=True):
             assert a["commonTargets"] == b["commonTargets"]
+            reference = a["trainingMeanReference"]
+            assert reference == b["trainingMeanReference"] and reference["scores"]["n"] == a["targets"]
+            assert reference["versusOrdinaryKriging"]["n"] == a["methods"]["ordinary-kriging"]["own"]["n"]
             for m in METHODS:
                 assert a["methods"][m] == b["methods"][m]
             for m in ("deepkriging", "kcn"):

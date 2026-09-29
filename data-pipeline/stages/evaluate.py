@@ -318,6 +318,17 @@ def evaluate_family(family, project, pre, dataset, predictions, models=None, lea
             training = [r["values"][analyte] for r in rows["train"] if analyte in r["values"]]
             low, high = min(training), max(training)
             record["trainingRange"] = [low, high]
+            # The constant reference: every test target predicted by the training mean, on the same targets.
+            mean = float(np.mean(training))
+            ids = [t for t in p["targets"] if t in truth]
+            ok_rows = {r["id"]: r for r in p["methods"]["ordinary-kriging"]["rows"] if r["status"] in PREDICTED}
+            shared = [t for t in ids if t in ok_rows]
+            record["trainingMeanReference"] = {
+                "value": mean, "scores": _scores([mean - truth[t] for t in ids], [info[t]["length"] for t in ids],
+                                                 [info[t]["hole"] for t in ids]),
+                "versusOrdinaryKriging": paired([mean - truth[t] for t in shared],
+                                                [ok_rows[t]["mean"] - truth[t] for t in shared],
+                                                [info[t]["hole"] for t in shared])}
             for m in METHODS:
                 rows_m = p["methods"][m]["rows"]
                 entry_m = {"coverage": sum(r["status"] in PREDICTED for r in rows_m) / max(1, len(rows_m)),

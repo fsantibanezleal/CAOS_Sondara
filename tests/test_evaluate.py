@@ -207,7 +207,7 @@ def test_variants_are_computed_and_scored(evaluated):
 
 def test_scenario_matrix_accounts_for_every_cell(tmp_path):
     from stages.estimators import METHODS
-    from stages.scenarios import CELLS, scenario_matrix
+    from stages.scenarios import CELLS, LEARNED, scenario_matrix
 
     registry = json.loads((ROOT / "data" / "scenarios" / "registry.json").read_text(encoding="utf-8"))
     assert list(CELLS) == [s["id"] for s in registry["scenarios"]]
@@ -227,7 +227,7 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
             population = schemes.setdefault(c["scheme"], {}).setdefault(
                 c["population"], {"population": c["population"], "methods": {}, "variants": {}})
             score = {"n": 3, "rmse": 1.5, "mae": 1.0, "bias": 0.1}
-            population["methods"].update({m: {"common": score} for m in METHODS})
+            population["methods"].update({m: {"common": score} for m in METHODS + LEARNED})
             if c["kind"] == "variant":
                 population["variants"][c["variant"]] = {"scores": score}
         return {"family": family, "schemes": [{"scheme": s, "populations": list(p.values())}
@@ -252,7 +252,7 @@ def test_scenario_matrix_accounts_for_every_cell(tmp_path):
     assert matrix["counts"]["missing"] == 0 and contract.check_scenarios(matrix, tmp_path) == []
     assert sum(matrix["counts"].values()) == sum(len(c) for c in CELLS.values())
     states = {s["id"]: s["state"] for s in matrix["scenarios"]}
-    assert states["R01"] == "complete" and states["R10"] == "partial" and states["R12"] == "pending"
+    assert states["R01"] == "complete" and states["R10"] == "complete" and states["R12"] == "pending"
     assert states["A07"] == "complete" and states["S11"] == "complete"
     assert matrix["pendingByOwner"] == {o: sum(c.get("owner") == o for cs in CELLS.values() for c in cs)
                                         for o in ("SD-7", "SD-8")}
@@ -299,5 +299,6 @@ def test_receipt_records_seeds_plan_engines_and_hashes(evaluated):
         assert receipt["engine"][stage]["geocond"] == geocond.__version__
     assert receipt["inputs"] == {"datasetSha256": stable_hash(data["dataset"]),
                                  "predictionsSha256": stable_hash(data["predictions"]),
-                                 "modelsSha256": stable_hash(data["models"])}
+                                 "modelsSha256": stable_hash(data["models"]),
+                                 "learnedPredictionsSha256": None}  # the continuous lane alone
     assert receipt["resultSha256"] == stable_hash(data["metrics"]["schemes"])
